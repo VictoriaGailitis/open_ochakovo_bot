@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="24" height="70" viewBox="0 0 24 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group">
+<path id="Vector" d="M16 0H8C6.89543 0 6 0.89543 6 2V6C6 7.10457 6.89543 8 8 8H16C17.1046 8 18 7.10457 18 6V2C18 0.89543 17.1046 0 16 0Z" fill="white"/>
+<path id="Vector_2" d="M6 8H18V20L24 30V64C24 68 22 70 18 70H6C2 70 0 68 0 64V30L6 20V8Z" fill="#AB2328"/>
+<path id="Vector_3" d="M22 36H2C0.89543 36 0 36.8954 0 38V54C0 55.1046 0.89543 56 2 56H22C23.1046 56 24 55.1046 24 54V38C24 36.8954 23.1046 36 22 36Z" fill="#FFF8F2"/>
+<g id="Vector_4">
+<path d="M7 42H18ZM7 47H15Z" fill="black"/>
+<path d="M7 42H18M7 47H15" stroke-width="2" stroke="#D50032"/>
+</g>
+</g>
+</svg>
