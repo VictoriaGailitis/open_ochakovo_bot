@@ -165,6 +165,9 @@
 .app-shell-games-catalog .screen {
   padding: 12px 16px 32px;
 }
+.app-shell-games-catalog .screen:focus {
+  outline: none;
+}
 .app-shell-games-catalog .bottom-nav {
   position: static;
   width: 100%;
