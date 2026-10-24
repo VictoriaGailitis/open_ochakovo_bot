@@ -87,6 +87,7 @@ export interface Catalog {
   rewards: Reward[];
 }
 export interface Bootstrap {
+  practiceAccess?: { hasPractice: boolean; isMentor: boolean };
   routeCompleted?: boolean;
   routeProgress?: {
     completed: number;

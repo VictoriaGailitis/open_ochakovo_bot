@@ -1,7 +1,7 @@
 import bridge from "@vkontakte/vk-bridge";
 import type { Bootstrap } from "./types";
 import { syncDraftClock } from "./draftClock";
-import { localStore } from "./storage";
+import { localStore, sessionStore } from "./storage";
 
 let token = "";
 export class ApiError extends Error {
@@ -43,6 +43,8 @@ export async function api<T>(
   return value as T;
 }
 function demoId() {
+  const override = sessionStore.get("ochakovo:practice:demo-identity");
+  if (override) return override;
   const key = "ochakovo:demo-user:v1";
   let id = localStore.get(key);
   if (!id) {
@@ -50,6 +52,10 @@ function demoId() {
     localStore.set(key, id);
   }
   return id;
+}
+export function setDemoIdentity(id: string | null) {
+  if (id) sessionStore.set("ochakovo:practice:demo-identity", id);
+  else sessionStore.remove("ochakovo:practice:demo-identity");
 }
 export async function initialize(): Promise<{
   data: Bootstrap;

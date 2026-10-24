@@ -12,6 +12,7 @@ import { AgeRestricted } from "./components/AgeRestricted";
 import { GamePlayer } from "./games/Games";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
+import { PracticeApp } from "./practice/PracticeApp";
 import { DraftConflictError, syncDraftClock } from "./draftClock";
 import { localStore, sessionStore } from "./storage";
 import {
@@ -304,6 +305,8 @@ export default function App() {
         </main>
       </div>
     );
+  if (page === "practice" || page === "mentor")
+    return <PracticeApp mode={mode} />;
   if (!profile) {
     if (!started)
       return (
@@ -331,6 +334,11 @@ export default function App() {
             Открыть свой маршрут
           </Button>
           <p className="small">Играй · узнавай компанию · выбирай практику</p>
+          {mode === "demo" && (
+            <Button secondary onClick={() => navigate("practice")}>
+              Посмотреть демопрактику
+            </Button>
+          )}
           <WelcomeHistory />
         </main>
       );
@@ -385,6 +393,24 @@ export default function App() {
     case "home":
       content = (
         <>
+          {(data.practiceAccess?.hasPractice || mode === "demo") && (
+            <CardLink
+              icon="◎"
+              title="Моя практика"
+              onClick={() => navigate("practice")}
+            >
+              Наставник, цели, встречи и твои результаты
+            </CardLink>
+          )}
+          {data.practiceAccess?.isMentor && (
+            <CardLink
+              icon="♧"
+              title="Кабинет наставника"
+              onClick={() => navigate("mentor")}
+            >
+              Твои практиканты, цели и обратная связь
+            </CardLink>
+          )}
           <section className="hero stack">
             <p className="eyebrow">ОТКРЫВАЕМ ВКУС К ДЕЛУ</p>
             <div className="hero-row row">
