@@ -8,6 +8,8 @@ import type {
   ShiftMetric,
   ShiftOption,
   ShiftPuzzle,
+  ShiftSchemeNode,
+  ShiftValueFormat,
   ShiftView,
 } from "./ShiftTypes";
 import {
@@ -54,24 +56,101 @@ const tabs: { view: ShiftView; label: string }[] = [
   { view: "checks", label: "Проверки" },
 ];
 const decimalIds = new Set(["rejects", "pressure", "temperature"]);
-function number(value: number, decimal = false) {
+const legacyHighlighted = new Set(["output", "packaging", "queue", "signals"]);
+function number(value: number, format: ShiftValueFormat = {}) {
+  const digits = (value: number | undefined, fallback: number) =>
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 20
+      ? value
+      : fallback;
+  const minimum = digits(format.minimumFractionDigits, 0);
   return new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: decimal ? 1 : 0,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: minimum,
+    maximumFractionDigits: Math.max(
+      minimum,
+      digits(format.maximumFractionDigits, 2),
+    ),
   }).format(value);
+}
+function metricFormat(metric: ShiftMetric): ShiftValueFormat {
+  const suffix =
+    metric.format?.suffix ??
+    (metric.id === "samples"
+      ? " / 40"
+      : ["output", "feed", "capping", "packaging", "signals"].includes(
+            metric.id,
+          )
+        ? " / мин"
+        : ` ${metric.unit}`);
+  return {
+    minimumFractionDigits: decimalIds.has(metric.id) ? 1 : 0,
+    suffix,
+    compactSuffix: ["queue", "boxes", "target"].includes(metric.id)
+      ? ""
+      : suffix,
+    comparisonSuffix:
+      metric.id === "samples"
+        ? " / 40"
+        : metric.id === "rejects"
+          ? ` ${metric.unit}`
+          : "",
+    ...metric.format,
+  };
+}
+function metricLabel(metric: ShiftMetric) {
+  return metric.shortLabel ?? shortLabels[metric.id] ?? metric.label;
 }
 function metricValue(
   metric: ShiftMetric,
   value = metric.value,
-  compact = false,
+  mode: "full" | "compact" | "comparison" = "full",
 ) {
-  const formatted = number(value, decimalIds.has(metric.id));
-  if (metric.id === "samples") return `${formatted} / 40`;
-  if (["queue", "boxes", "target"].includes(metric.id))
-    return compact ? formatted : `${formatted} ${metric.unit}`;
-  if (["output", "feed", "capping", "packaging", "signals"].includes(metric.id))
-    return `${formatted} / мин`;
-  return `${formatted} ${metric.unit}`;
+  const format = metricFormat(metric);
+  const suffix =
+    mode === "comparison"
+      ? format.comparisonSuffix
+      : mode === "compact"
+        ? format.compactSuffix
+        : format.suffix;
+  return `${number(value, format)}${suffix ?? ""}`;
+}
+function metricHighlighted(metric: ShiftMetric) {
+  return (
+    metric.highlight ??
+    (legacyHighlighted.has(metric.id) && metric.value !== metric.previous)
+  );
+}
+function ShiftComparison({ metric }: { metric: ShiftMetric }) {
+  const delta = metric.value - metric.previous;
+  const y = 6 - (delta / Math.max(Math.abs(delta), 1)) * 5;
+  return (
+    <svg
+      className="shift-comparison"
+      viewBox="0 0 98 12"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <line
+        x1="1"
+        x2="97"
+        y1="6"
+        y2="6"
+        stroke="#e9cdd4"
+        strokeDasharray="2 3"
+      />
+      <line
+        x1="1"
+        x2="97"
+        y1="6"
+        y2={y}
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="95" cy={y} r="2" fill="currentColor" />
+    </svg>
+  );
 }
 const errorMessage = (error: unknown) =>
   error instanceof Error
@@ -277,7 +356,7 @@ function ShiftSession({
   );
   const detailTitle =
     draft.view === "metric" && metric
-      ? `${shortLabels[metric.id] ?? metric.label} — подробнее`
+      ? `${metricLabel(metric)} — подробнее`
       : draft.view === "check" && check
         ? check.title
         : titles[draft.view];
@@ -377,20 +456,18 @@ function ShiftSession({
               <div className="shift-metric-grid">
                 {puzzle.metrics.map((item) => (
                   <button
-                    className="shift-metric-card"
+                    className={`shift-metric-card ${metricHighlighted(item) ? "highlighted" : ""}`}
                     key={item.id}
                     onClick={() => openMetric(item.id)}
                     disabled={busy}
-                    aria-label={`${shortLabels[item.id] ?? item.label}: ${metricValue(item)}; ранее ${metricValue(item, item.previous)}`}
+                    aria-label={`${metricLabel(item)}: ${metricValue(item)}; ранее ${metricValue(item, item.previous)}`}
                   >
-                    <span>{shortLabels[item.id] ?? item.label}</span>
-                    <strong>{metricValue(item, item.value, true)}</strong>
+                    <span>{metricLabel(item)}</span>
+                    <strong>{metricValue(item, item.value, "compact")}</strong>
                     <small>
-                      ранее{" "}
-                      {["samples", "rejects"].includes(item.id)
-                        ? metricValue(item, item.previous, true)
-                        : number(item.previous, decimalIds.has(item.id))}
+                      ранее {metricValue(item, item.previous, "comparison")}
                     </small>
+                    <ShiftComparison metric={item} />
                   </button>
                 ))}
               </div>
@@ -436,11 +513,7 @@ function ShiftSession({
                 </article>
                 <article className="shift-card">
                   <p className="shift-caption">СРАВНЕНИЕ</p>
-                  <h2>
-                    {metric.id === "samples"
-                      ? metricValue(metric, metric.previous, true)
-                      : number(metric.previous, decimalIds.has(metric.id))}
-                  </h2>
+                  <h2>{metricValue(metric, metric.previous, "comparison")}</h2>
                   <p className="shift-muted">Предыдущий снимок</p>
                 </article>
               </div>
@@ -486,9 +559,7 @@ function ShiftSession({
                     {metric.series.map((point, i) => (
                       <tr key={`${point.time}-${i}`}>
                         <th scope="row">{point.time}</th>
-                        <td>
-                          {number(point.value, decimalIds.has(metric.id))}
-                        </td>
+                        <td>{number(point.value, metricFormat(metric))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1071,7 +1142,7 @@ function ShiftPlot({ metric }: { metric: ShiftMetric }) {
       <svg
         viewBox="0 0 326 140"
         role="img"
-        aria-label={`График ${metric.label}: ${metric.series.map((p) => `${p.time}: ${number(p.value)}`).join("; ")}`}
+        aria-label={`График ${metric.label}: ${metric.series.map((p) => `${p.time}: ${number(p.value, metricFormat(metric))}`).join("; ")}`}
       >
         <g transform="translate(26,0)">
           {[6, 58, 110].map((y, i) => (
@@ -1085,7 +1156,10 @@ function ShiftPlot({ metric }: { metric: ShiftMetric }) {
                 strokeWidth="1"
               />
               <text x="-18" y={y + 3} fill="#fff8f2" fontSize="8">
-                {number(i === 0 ? max : i === 1 ? (max + min) / 2 : min)}
+                {number(
+                  i === 0 ? max : i === 1 ? (max + min) / 2 : min,
+                  metricFormat(metric),
+                )}
               </text>
             </g>
           ))}
@@ -1136,23 +1210,35 @@ function ShiftScheme({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
-  const nodes = new Map(puzzle.scheme.nodes.map((n) => [n.id, n])),
-    queueMetric = puzzle.metrics.find((m) => m.id === "queue");
-  const node = (id: string, position: string) => {
-    const item = nodes.get(id);
-    return item ? (
-      <button
-        className={`shift-scheme-node ${position} ${selectedId === id ? "selected" : ""}`}
-        onClick={() => onSelect(id)}
-        aria-label={`${item.label}: ${number(item.value)} ${item.unit}`}
-      >
-        <span>{item.label.toUpperCase()}</span>
-        <strong>{number(item.value)} / мин</strong>
-      </button>
-    ) : null;
+  const legacyPositions: Record<string, { x: number; y: number }> = {
+    feed: { x: 30, y: 33 },
+    capping: { x: 30, y: 112 },
+    packaging: { x: 195, y: 192 },
+    queue: { x: 180, y: 133 },
   };
+  const display = (node: ShiftSchemeNode) =>
+    node.display ??
+    (node.id === "queue"
+      ? "queue"
+      : node.position || legacyPositions[node.id]
+        ? "card"
+        : "extra");
+  const position = (node: ShiftSchemeNode, index: number) => {
+    const point = node.position ??
+      legacyPositions[node.id] ?? {
+        x: 24 + (index % 2) * 174,
+        y: 32 + Math.floor(index / 2) * 80,
+      };
+    return {
+      left: `${(point.x / 350) * 100}%`,
+      top: `${(point.y / 270) * 100}%`,
+    };
+  };
+  const nodeValue = (node: ShiftSchemeNode) =>
+    `${number(node.value, node.format)}${node.format?.suffix ?? (node.unit.endsWith("/мин") ? " / мин" : ` ${node.unit}`)}`;
+  const queue = puzzle.scheme.nodes.find((node) => display(node) === "queue");
   const flow =
-    puzzle.scheme.flows.find((f) => f.from === "capping") ??
+    puzzle.scheme.flows.find((item) => item.from === "capping") ??
     puzzle.scheme.flows[0];
   return (
     <div className="shift-scheme">
@@ -1167,25 +1253,40 @@ function ShiftScheme({
         aria-hidden="true"
       >
         {[95, 117, 139, 161]
-          .slice(0, Math.min(4, nodes.get("queue")?.value ?? 0))
+          .slice(0, Math.min(4, queue?.value ?? 0))
           .map((x) => (
             <circle key={x} cx={x} cy="220" r="7" fill="#d50032" />
           ))}
       </svg>
-      {node("feed", "feed")}
-      {node("capping", "capping")}
-      {node("packaging", "packaging")}
+      {puzzle.scheme.nodes.map((node, index) => {
+        if (display(node) === "extra") return null;
+        const isQueue = display(node) === "queue";
+        const previous = puzzle.metrics.find(
+          (metric) => metric.id === (node.metricId ?? node.id),
+        )?.previous;
+        return (
+          <button
+            key={node.id}
+            className={`${isQueue ? "shift-scheme-queue" : "shift-scheme-node"} ${selectedId === node.id ? "selected" : ""}`}
+            style={position(node, index)}
+            onClick={() => onSelect(node.id)}
+            aria-label={`${node.label}: ${nodeValue(node)}${isQueue && previous !== undefined ? `; ранее ${number(previous, node.format)}` : ""}`}
+          >
+            <span>
+              {node.label.toUpperCase()}
+              {isQueue ? `: ${number(node.value, node.format)}` : ""}
+            </span>
+            {isQueue ? (
+              previous !== undefined && (
+                <small>ранее {number(previous, node.format)}</small>
+              )
+            ) : (
+              <strong>{nodeValue(node)}</strong>
+            )}
+          </button>
+        );
+      })}
       <p className="shift-scheme-time">СНИМОК {puzzle.snapshotTime}</p>
-      {nodes.get("queue") && (
-        <button
-          className="shift-scheme-queue"
-          onClick={() => onSelect("queue")}
-          aria-label={`Очередь: ${nodes.get("queue")!.value}; ранее ${queueMetric?.previous}`}
-        >
-          <span>ОЧЕРЕДЬ: {nodes.get("queue")!.value}</span>
-          <small>ранее {queueMetric?.previous}</small>
-        </button>
-      )}
       {flow && (
         <button
           className="shift-flow-target"
@@ -1195,12 +1296,10 @@ function ShiftScheme({
       )}
       <div className="shift-scheme-extra">
         {puzzle.scheme.nodes
-          .filter(
-            (n) => !["feed", "capping", "packaging", "queue"].includes(n.id),
-          )
-          .map((n) => (
-            <button key={n.id} onClick={() => onSelect(n.id)}>
-              {n.label}: {number(n.value)} / мин
+          .filter((node) => display(node) === "extra")
+          .map((node) => (
+            <button key={node.id} onClick={() => onSelect(node.id)}>
+              {node.label}: {nodeValue(node)}
             </button>
           ))}
       </div>

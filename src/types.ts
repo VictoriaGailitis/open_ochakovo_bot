@@ -1,4 +1,4 @@
-import type { Task } from "./games/types";
+import type { GameDefinition, Task } from "./games/types";
 
 export interface Profile {
   fullName: string;
@@ -104,6 +104,7 @@ export interface LedgerEntry {
   created: string;
 }
 export interface Catalog {
+  games?: GameDefinition[];
   tasks: Task[];
   offers: Offer[];
   events: CareerEvent[];

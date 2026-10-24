@@ -10,8 +10,19 @@ export interface ShiftFact {
   time: string;
   text: string;
 }
+export interface ShiftValueFormat {
+  minimumFractionDigits?: number;
+  maximumFractionDigits?: number;
+  /** Literal suffixes include their own separating space. */
+  suffix?: string;
+  compactSuffix?: string;
+  comparisonSuffix?: string;
+}
 export interface ShiftMetric {
   id: string;
+  shortLabel?: string;
+  highlight?: boolean;
+  format?: ShiftValueFormat;
   label: string;
   value: number;
   unit: string;
@@ -24,6 +35,11 @@ export interface ShiftMetric {
 }
 export interface ShiftSchemeNode {
   id: string;
+  /** Coordinates use the existing 350 × 270 design canvas. */
+  position?: { x: number; y: number };
+  display?: "card" | "queue" | "extra";
+  metricId?: string;
+  format?: ShiftValueFormat;
   label: string;
   value: number;
   unit: string;

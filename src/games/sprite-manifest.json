@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "sprites": [
+    {
+      "id": "automation-bottle-circle",
+      "kind": "automation",
+      "src": "/assets/games-v5/automation-bottle-circle.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "automation-bottle-square",
+      "kind": "automation",
+      "src": "/assets/games-v5/automation-bottle-square.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "automation-scanner",
+      "kind": "automation",
+      "src": "/assets/games-v5/automation-scanner.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "automation-tray",
+      "kind": "automation",
+      "src": "/assets/games-v5/automation-tray.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "mechanics-gear-ivory",
+      "kind": "mechanics",
+      "src": "/assets/games-v5/mechanics-gear-ivory.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "mechanics-gear-red",
+      "kind": "mechanics",
+      "src": "/assets/games-v5/mechanics-gear-red.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "mechanics-gear-silver",
+      "kind": "mechanics",
+      "src": "/assets/games-v5/mechanics-gear-silver.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "mechanics-socket",
+      "kind": "mechanics",
+      "src": "/assets/games-v5/mechanics-socket.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "laboratory-tube-red",
+      "kind": "laboratory",
+      "src": "/assets/games-v5/laboratory-tube-red.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "laboratory-tube-gold",
+      "kind": "laboratory",
+      "src": "/assets/games-v5/laboratory-tube-gold.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "laboratory-dropper",
+      "kind": "laboratory",
+      "src": "/assets/games-v5/laboratory-dropper.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "laboratory-meter",
+      "kind": "laboratory",
+      "src": "/assets/games-v5/laboratory-meter.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "warehouse-crate-a",
+      "kind": "warehouse",
+      "src": "/assets/games-v5/warehouse-crate-a.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "warehouse-crate-b",
+      "kind": "warehouse",
+      "src": "/assets/games-v5/warehouse-crate-b.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "warehouse-pallet-jack",
+      "kind": "warehouse",
+      "src": "/assets/games-v5/warehouse-pallet-jack.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    },
+    {
+      "id": "warehouse-barrier",
+      "kind": "warehouse",
+      "src": "/assets/games-v5/warehouse-barrier.png",
+      "width": 96,
+      "height": 96,
+      "pixelWidth": 192,
+      "pixelHeight": 192
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+.game-sprite {
+  display: inline-block;
+  width: 96px;
+  height: 96px;
+  flex: none;
+  vertical-align: middle;
+  pointer-events: none;
+}
+.game-sprite > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-width: none;
+  user-select: none;
+}
+.game-scene {
+  position: relative;
+  isolation: isolate;
+}
+.game-scene-objects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+}

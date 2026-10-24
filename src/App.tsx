@@ -12,6 +12,7 @@ import { AgeRestricted } from "./components/AgeRestricted";
 import { EventActivities } from "./components/EventActivities";
 import { QrScanner } from "./components/QrScanner";
 import { GamePlayer } from "./games/Games";
+import { GameCatalog } from "./games/GameCatalog";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
 import { DraftConflictError, syncDraftClock } from "./draftClock";
@@ -360,7 +361,8 @@ export default function App() {
         ? "events"
         : "home";
   const task = catalog.tasks.find((t) => t.id === route.id);
-  const shiftScreen = page === "game" && task?.game === "shift";
+  const gameScreen = page === "game" && Boolean(task);
+  const shiftScreen = gameScreen && task?.game === "shift";
   const offer = catalog.offers.find((o) => o.id === route.id);
   const event = catalog.events.find((e) => e.id === route.id);
   const reward = catalog.rewards.find((r) => r.id === route.id);
@@ -470,7 +472,14 @@ export default function App() {
       );
       break;
     case "tasks":
-      content = <Tasks tasks={catalog.tasks} progress={progress} />;
+      content = (
+        <GameCatalog
+          games={catalog.games}
+          tasks={catalog.tasks}
+          progress={progress}
+          onSelect={(id) => navigate("game", id)}
+        />
+      );
       break;
     case "game":
       content = task ? (
@@ -994,7 +1003,9 @@ export default function App() {
       );
   }
   return (
-    <div className={`app-shell ${shiftScreen ? "app-shell-shift" : ""}`}>
+    <div
+      className={`app-shell ${shiftScreen ? "app-shell-shift" : ""} ${gameScreen && !shiftScreen ? "app-shell-game" : ""} ${page === "tasks" ? "app-shell-games-catalog" : ""}`}
+    >
       <header className="app-header row spread">
         <button className="brand button-ghost" onClick={() => navigate("home")}>
           Очаково: изнутри
@@ -1017,7 +1028,7 @@ export default function App() {
         </div>
       </header>
       <main
-        className={`screen stack ${shiftScreen ? "screen-shift" : ""}`}
+        className={`screen stack ${shiftScreen ? "screen-shift" : gameScreen ? "screen-game" : ""}`}
         ref={headingRef}
         tabIndex={-1}
       >
@@ -1035,7 +1046,7 @@ export default function App() {
         )}
         {content}
       </main>
-      {!shiftScreen && (
+      {!gameScreen && (
         <nav className="bottom-nav" aria-label="Основная навигация">
           {[
             ["home", "⌂", "Для тебя"],
@@ -1389,137 +1400,6 @@ function ProfileForm({
         </p>
       )}
     </form>
-  );
-}
-
-function Tasks({
-  tasks,
-  progress,
-}: {
-  tasks: Task[];
-  progress: Bootstrap["progress"];
-}) {
-  const [topic, setTopic] = useState("all");
-  const [state, setState] = useState("all");
-  const visibleTasks = tasks.filter((task) => {
-    if (topic === "history" && task.game !== "history") return false;
-    if (topic === "professions" && task.game === "history") return false;
-    const item = progress.find((p) => p.task === task.id);
-    return (
-      state === "all" ||
-      (state === "completed"
-        ? Boolean(item?.completed)
-        : state === "started"
-          ? Boolean(item && !item.completed)
-          : !item)
-    );
-  });
-  const groups = [...new Set(visibleTasks.map((t) => t.game))];
-  return (
-    <>
-      <p className="eyebrow">ПОПРОБУЙ ПРОФЕССИЮ</p>
-      <h1 className="page-title">
-        У каждого вкуса
-        <br />
-        есть команда
-      </h1>
-      <p className="muted">
-        Собирай, исследуй, открывай новое. Найди дело, которое тебе по вкусу.
-      </p>
-      <div className="chips" aria-label="Темы заданий">
-        {[
-          ["all", "Все"],
-          ["professions", "Профессии"],
-          ["history", "История и бренды"],
-        ].map(([id, title]) => (
-          <button
-            key={id}
-            className={`chip ${topic === id ? "selected" : ""}`}
-            onClick={() => setTopic(id)}
-          >
-            {title}
-          </button>
-        ))}
-      </div>
-      <label className="field">
-        Показывать
-        <select
-          className="form-select"
-          value={state}
-          onChange={(e) => setState(e.target.value)}
-        >
-          {[
-            ["all", "Все задания"],
-            ["new", "Новые"],
-            ["started", "Начатые"],
-            ["completed", "Пройденные"],
-          ].map(([id, title]) => (
-            <option key={id} value={id}>
-              {title}
-            </option>
-          ))}
-        </select>
-      </label>
-      {!visibleTasks.length && (
-        <Empty>
-          Заданий с такими условиями пока нет. Измени фильтр, чтобы увидеть
-          другие уровни.
-        </Empty>
-      )}
-      {groups
-        .filter(
-          (g) =>
-            topic === "all" ||
-            (topic === "history" ? g === "history" : g !== "history"),
-        )
-        .map((game) => {
-          const levels = tasks.filter((t) => t.game === game);
-          const visible = visibleTasks.filter((t) => t.game === game);
-          if (!visible.length) return null;
-          const done = levels.filter((t) =>
-            progress.some((p) => p.task === t.id && p.completed),
-          ).length;
-          return (
-            <section className="card stack" key={game}>
-              <div className="row">
-                <span className="task-number">{gameNumbers[game]}</span>
-                <div className="stack task-info">
-                  <p className="eyebrow">{gameLabels[game]}</p>
-                  <h2>{levels[0].title}</h2>
-                </div>
-              </div>
-              <p className="small muted">{levels[0].description}</p>
-              <div className="row spread small">
-                <span>{levels[0].duration}</span>
-                <span>до +{levels[0].points} б. за уровень</span>
-              </div>
-              <div className="chips">
-                {visible.map((t) => (
-                  <button
-                    className={`chip ${progress.some((p) => p.task === t.id && p.completed) ? "selected" : ""}`}
-                    onClick={() => navigate("game", t.id)}
-                    key={t.id}
-                  >
-                    {t.game === "history"
-                      ? "Открыть тест"
-                      : `Уровень ${t.level}`}{" "}
-                    {progress.some((p) => p.task === t.id && p.completed)
-                      ? "✓"
-                      : "→"}
-                  </button>
-                ))}
-              </div>
-              <span className="small muted">
-                Пройдено: {done} из {levels.length}
-              </span>
-            </section>
-          );
-        })}
-      <p className="small muted">
-        Повтор улучшает результат, но баллы за уже пройденный уровень не
-        начисляются повторно. Учебные игры не оценивают квалификацию.
-      </p>
-    </>
   );
 }
 

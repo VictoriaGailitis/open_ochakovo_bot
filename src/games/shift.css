@@ -173,6 +173,22 @@
   min-height: 78px;
   cursor: pointer;
 }
+.shift-metric-card.highlighted {
+  background: var(--shift-blush);
+}
+.shift-metric-card.highlighted strong {
+  color: var(--shift-red);
+}
+.shift-comparison {
+  display: block;
+  width: 100%;
+  height: 12px;
+  flex: none;
+  color: #a2aaad;
+}
+.shift-metric-card.highlighted .shift-comparison {
+  color: var(--shift-red);
+}
 .shift-metric-card span {
   font-size: 11px;
   line-height: 15px;

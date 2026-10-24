@@ -5,11 +5,13 @@ import {
   appendRoute,
   footprint,
   gearDirections,
+  movementNetwork,
   placementError,
   runSignal,
 } from "./mechanics";
 import type {
   Batch,
+  Belt,
   DeliveryPuzzle,
   MovementPuzzle,
   SignalPuzzle,
@@ -130,4 +132,74 @@ test("warehouse route advances by one orthogonal cell and permits retracing", ()
   ]);
   assert.equal(path.length, 1);
   assert.equal(appendRoute(next, { x: 0, y: 0 })?.length, 3);
+});
+
+const shaft = (x: number, y = 1) => ({ x, y });
+const belt = (from: number, to: number): Belt => ({
+  from: shaft(from),
+  to: shaft(to),
+});
+function beltPuzzle(): MovementPuzzle {
+  return {
+    width: 5,
+    height: 3,
+    source: { ...shaft(0), direction: 1 },
+    target: { ...shaft(4), direction: 1 },
+    maxGears: 5,
+    maxBelts: 2,
+    beltLinks: [belt(0, 2), belt(0, 3), belt(1, 3), belt(0, 4)],
+  };
+}
+test("open belt transmits across gaps preserving direction while gear contacts flip", () => {
+  const p = beltPuzzle();
+  for (const bridge of [belt(0, 2), belt(2, 0)]) {
+    const result = movementNetwork(p, [shaft(2), shaft(3)], [bridge]);
+    assert.equal(result.blocked, false);
+    assert.equal(result.directions.get("2,1"), 1);
+    assert.equal(result.directions.get("3,1"), -1);
+    assert.equal(result.directions.get("4,1"), 1);
+  }
+  assert.equal(gearDirections(p, [], [belt(0, 4)]).get("4,1"), 1);
+});
+test("signed networks stop conflicting cycles but allow consistent constraints", () => {
+  const p = beltPuzzle(),
+    gears = [shaft(1), shaft(2), shaft(3)];
+  assert.equal(movementNetwork(p, gears, [belt(0, 2)]).blocked, false);
+  const conflict = movementNetwork(p, gears, [belt(0, 3)]);
+  assert.equal(conflict.blocked, true);
+  assert.match(conflict.error!, /заблокирован/);
+  assert.equal(conflict.directions.size, 0);
+  assert.equal(gearDirections(p, gears, [belt(0, 3)]).size, 0);
+});
+test("belt preview rejects unknown shafts, duplicate pairs, limits and malformed inputs", () => {
+  const p = beltPuzzle();
+  assert.equal(movementNetwork(p, [shaft(3)], [belt(0, 2)]).blocked, true);
+  assert.equal(movementNetwork(p, [], [belt(0, 4), belt(4, 0)]).blocked, true);
+  assert.equal(
+    movementNetwork(
+      p,
+      [shaft(1), shaft(3)],
+      [belt(0, 3), belt(1, 3), belt(0, 4)],
+    ).blocked,
+    true,
+  );
+  assert.equal(movementNetwork(p, [shaft(1)], [belt(1, 4)]).blocked, true);
+  assert.equal(movementNetwork(p, [shaft(1), shaft(1)], []).blocked, true);
+  for (const invalid of [
+    null,
+    {},
+    { from: shaft(0), to: shaft(5) },
+    { from: shaft(0), to: shaft(0) },
+    { from: shaft(0), to: shaft(4), extra: true },
+  ])
+    assert.equal(movementNetwork(p, [], [invalid as Belt]).blocked, true);
+  for (const missing of ["maxBelts", "beltLinks"] as const) {
+    const legacy = { ...p };
+    delete legacy[missing];
+    assert.equal(movementNetwork(legacy, [], [belt(0, 4)]).blocked, true);
+    assert.equal(
+      gearDirections(legacy, [shaft(1), shaft(2), shaft(3)]).get("4,1"),
+      1,
+    );
+  }
 });

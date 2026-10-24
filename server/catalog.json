@@ -53,7 +53,14 @@
             "factId": "metric-output",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-output"
+            "historyFactId": "history-output",
+            "shortLabel": "Выпуск",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "feed",
@@ -90,7 +97,14 @@
             "factId": "metric-feed",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-feed"
+            "historyFactId": "history-feed",
+            "shortLabel": "Подача",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "capping",
@@ -127,7 +141,14 @@
             "factId": "metric-capping",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-capping"
+            "historyFactId": "history-capping",
+            "shortLabel": "Укупорка",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "packaging",
@@ -164,7 +185,14 @@
             "factId": "metric-packaging",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-packaging"
+            "historyFactId": "history-packaging",
+            "shortLabel": "Упаковка",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "queue",
@@ -201,7 +229,15 @@
             "factId": "metric-queue",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-queue"
+            "historyFactId": "history-queue",
+            "shortLabel": "Очередь",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " упак.",
+              "compactSuffix": ""
+            }
           },
           {
             "id": "signals",
@@ -238,7 +274,14 @@
             "factId": "metric-signals",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-signals"
+            "historyFactId": "history-signals",
+            "shortLabel": "Сигналы",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "samples",
@@ -275,7 +318,15 @@
             "factId": "metric-samples",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-samples"
+            "historyFactId": "history-samples",
+            "shortLabel": "Проверка проб",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / 40",
+              "comparisonSuffix": " / 40"
+            }
           },
           {
             "id": "rejects",
@@ -312,7 +363,15 @@
             "factId": "metric-rejects",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-rejects"
+            "historyFactId": "history-rejects",
+            "shortLabel": "Отбраковка",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 1,
+              "maximumFractionDigits": 2,
+              "suffix": " %",
+              "comparisonSuffix": " %"
+            }
           },
           {
             "id": "pressure",
@@ -349,7 +408,14 @@
             "factId": "metric-pressure",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-pressure"
+            "historyFactId": "history-pressure",
+            "shortLabel": "Воздух",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 1,
+              "maximumFractionDigits": 2,
+              "suffix": " бар"
+            }
           },
           {
             "id": "temperature",
@@ -386,7 +452,14 @@
             "factId": "metric-temperature",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-temperature"
+            "historyFactId": "history-temperature",
+            "shortLabel": "Температура",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 1,
+              "maximumFractionDigits": 2,
+              "suffix": " °C"
+            }
           },
           {
             "id": "boxes",
@@ -423,7 +496,15 @@
             "factId": "metric-boxes",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-boxes"
+            "historyFactId": "history-boxes",
+            "shortLabel": "Коробки",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " шт.",
+              "compactSuffix": ""
+            }
           },
           {
             "id": "target",
@@ -460,7 +541,15 @@
             "factId": "metric-target",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-target"
+            "historyFactId": "history-target",
+            "shortLabel": "Задание",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " упак.",
+              "compactSuffix": ""
+            }
           }
         ],
         "scheme": {
@@ -470,35 +559,87 @@
               "label": "Подача",
               "value": 60,
               "unit": "упак./мин",
-              "factId": "scheme-feed"
+              "factId": "scheme-feed",
+              "metricId": "feed",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "card",
+              "position": {
+                "x": 30,
+                "y": 33
+              }
             },
             {
               "id": "capping",
               "label": "Укупорка",
               "value": 60,
               "unit": "упак./мин",
-              "factId": "metric-capping"
+              "factId": "metric-capping",
+              "metricId": "capping",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "card",
+              "position": {
+                "x": 30,
+                "y": 112
+              }
             },
             {
               "id": "queue",
               "label": "Очередь",
               "value": 18,
               "unit": "упак.",
-              "factId": "metric-queue"
+              "factId": "metric-queue",
+              "metricId": "queue",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " упак.",
+                "compactSuffix": ""
+              },
+              "display": "queue",
+              "position": {
+                "x": 180,
+                "y": 133
+              }
             },
             {
               "id": "packaging",
               "label": "Упаковка",
               "value": 42,
               "unit": "упак./мин",
-              "factId": "metric-packaging"
+              "factId": "metric-packaging",
+              "metricId": "packaging",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "card",
+              "position": {
+                "x": 195,
+                "y": 192
+              }
             },
             {
               "id": "output",
               "label": "Выход",
               "value": 42,
               "unit": "упак./мин",
-              "factId": "metric-output"
+              "factId": "metric-output",
+              "metricId": "output",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "extra"
             }
           ],
           "flows": [
@@ -507,28 +648,32 @@
               "from": "feed",
               "to": "capping",
               "label": "Движение потока",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": false
             },
             {
               "id": "flow-2",
               "from": "capping",
               "to": "queue",
               "label": "Подача и укупорка работают с темпом 60/мин; на упаковку выходит 42/мин, перед ней накапливается очередь 18 упаковок.",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": true
             },
             {
               "id": "flow-3",
               "from": "queue",
               "to": "packaging",
               "label": "Движение потока",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": false
             },
             {
               "id": "flow-4",
               "from": "packaging",
               "to": "output",
               "label": "Движение потока",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": false
             }
           ]
         },
@@ -943,6 +1088,12 @@
           "Кому в рамках роли нужно передать подтверждённые данные?"
         ],
         "maxObservations": 32
+      },
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "laboratory-meter"
+        }
       }
     },
     {
@@ -998,7 +1149,14 @@
             "factId": "metric-output",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-output"
+            "historyFactId": "history-output",
+            "shortLabel": "Выпуск",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "feed",
@@ -1035,7 +1193,14 @@
             "factId": "metric-feed",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-feed"
+            "historyFactId": "history-feed",
+            "shortLabel": "Подача",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "capping",
@@ -1072,7 +1237,14 @@
             "factId": "metric-capping",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-capping"
+            "historyFactId": "history-capping",
+            "shortLabel": "Укупорка",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "packaging",
@@ -1109,7 +1281,14 @@
             "factId": "metric-packaging",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-packaging"
+            "historyFactId": "history-packaging",
+            "shortLabel": "Упаковка",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "queue",
@@ -1146,7 +1325,15 @@
             "factId": "metric-queue",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-queue"
+            "historyFactId": "history-queue",
+            "shortLabel": "Очередь",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " упак.",
+              "compactSuffix": ""
+            }
           },
           {
             "id": "signals",
@@ -1183,7 +1370,14 @@
             "factId": "metric-signals",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-signals"
+            "historyFactId": "history-signals",
+            "shortLabel": "Сигналы",
+            "highlight": true,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / мин"
+            }
           },
           {
             "id": "samples",
@@ -1220,7 +1414,15 @@
             "factId": "metric-samples",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-samples"
+            "historyFactId": "history-samples",
+            "shortLabel": "Проверка проб",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " / 40",
+              "comparisonSuffix": " / 40"
+            }
           },
           {
             "id": "rejects",
@@ -1257,7 +1459,15 @@
             "factId": "metric-rejects",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-rejects"
+            "historyFactId": "history-rejects",
+            "shortLabel": "Отбраковка",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 1,
+              "maximumFractionDigits": 2,
+              "suffix": " %",
+              "comparisonSuffix": " %"
+            }
           },
           {
             "id": "pressure",
@@ -1294,7 +1504,14 @@
             "factId": "metric-pressure",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-pressure"
+            "historyFactId": "history-pressure",
+            "shortLabel": "Воздух",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 1,
+              "maximumFractionDigits": 2,
+              "suffix": " бар"
+            }
           },
           {
             "id": "temperature",
@@ -1331,7 +1548,14 @@
             "factId": "metric-temperature",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-temperature"
+            "historyFactId": "history-temperature",
+            "shortLabel": "Температура",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 1,
+              "maximumFractionDigits": 2,
+              "suffix": " °C"
+            }
           },
           {
             "id": "boxes",
@@ -1368,7 +1592,15 @@
             "factId": "metric-boxes",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-boxes"
+            "historyFactId": "history-boxes",
+            "shortLabel": "Коробки",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " шт.",
+              "compactSuffix": ""
+            }
           },
           {
             "id": "target",
@@ -1405,7 +1637,15 @@
             "factId": "metric-target",
             "source": "Пульт показателей",
             "time": "14:07:30",
-            "historyFactId": "history-target"
+            "historyFactId": "history-target",
+            "shortLabel": "Задание",
+            "highlight": false,
+            "format": {
+              "minimumFractionDigits": 0,
+              "maximumFractionDigits": 2,
+              "suffix": " упак.",
+              "compactSuffix": ""
+            }
           }
         ],
         "scheme": {
@@ -1415,35 +1655,87 @@
               "label": "Подача",
               "value": 42,
               "unit": "упак./мин",
-              "factId": "scheme-feed"
+              "factId": "scheme-feed",
+              "metricId": "feed",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "card",
+              "position": {
+                "x": 30,
+                "y": 33
+              }
             },
             {
               "id": "capping",
               "label": "Укупорка",
               "value": 42,
               "unit": "упак./мин",
-              "factId": "metric-capping"
+              "factId": "metric-capping",
+              "metricId": "capping",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "card",
+              "position": {
+                "x": 30,
+                "y": 112
+              }
             },
             {
               "id": "queue",
               "label": "Очередь",
               "value": 0,
               "unit": "упак.",
-              "factId": "metric-queue"
+              "factId": "metric-queue",
+              "metricId": "queue",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " упак.",
+                "compactSuffix": ""
+              },
+              "display": "queue",
+              "position": {
+                "x": 180,
+                "y": 133
+              }
             },
             {
               "id": "packaging",
               "label": "Упаковка",
               "value": 42,
               "unit": "упак./мин",
-              "factId": "metric-packaging"
+              "factId": "metric-packaging",
+              "metricId": "packaging",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "card",
+              "position": {
+                "x": 195,
+                "y": 192
+              }
             },
             {
               "id": "output",
               "label": "Выход",
               "value": 42,
               "unit": "упак./мин",
-              "factId": "metric-output"
+              "factId": "metric-output",
+              "metricId": "output",
+              "format": {
+                "minimumFractionDigits": 0,
+                "maximumFractionDigits": 2,
+                "suffix": " / мин"
+              },
+              "display": "extra"
             }
           ],
           "flows": [
@@ -1452,28 +1744,32 @@
               "from": "feed",
               "to": "capping",
               "label": "Движение потока",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": false
             },
             {
               "id": "flow-2",
               "from": "capping",
               "to": "queue",
               "label": "Подача с предыдущего участка снизилась до 42/мин; укупорка и упаковка получают тот же поток. Очередь перед упаковкой сократилась до 0.",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": true
             },
             {
               "id": "flow-3",
               "from": "queue",
               "to": "packaging",
               "label": "Движение потока",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": false
             },
             {
               "id": "flow-4",
               "from": "packaging",
               "to": "output",
               "label": "Движение потока",
-              "factId": "scheme-flow"
+              "factId": "scheme-flow",
+              "primary": false
             }
           ]
         },
@@ -1888,6 +2184,12 @@
           "Кому в рамках роли нужно передать подтверждённые данные?"
         ],
         "maxObservations": 32
+      },
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "laboratory-meter"
+        }
       }
     },
     {
@@ -1935,7 +2237,19 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "automation",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "automation-bottle-circle",
+          "bottleCircle": "automation-bottle-circle",
+          "bottleSquare": "automation-bottle-square",
+          "scanner": "automation-scanner",
+          "tray": "automation-tray",
+          "item:red": "automation-bottle-circle",
+          "item:blue": "automation-bottle-square"
+        }
+      }
     },
     {
       "id": "signal-2",
@@ -1982,7 +2296,19 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "automation",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "automation-bottle-circle",
+          "bottleCircle": "automation-bottle-circle",
+          "bottleSquare": "automation-bottle-square",
+          "scanner": "automation-scanner",
+          "tray": "automation-tray",
+          "item:red": "automation-bottle-circle",
+          "item:blue": "automation-bottle-square"
+        }
+      }
     },
     {
       "id": "signal-3",
@@ -2029,7 +2355,19 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "automation",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "automation-bottle-circle",
+          "bottleCircle": "automation-bottle-circle",
+          "bottleSquare": "automation-bottle-square",
+          "scanner": "automation-scanner",
+          "tray": "automation-tray",
+          "item:red": "automation-bottle-circle",
+          "item:blue": "automation-bottle-square"
+        }
+      }
     },
     {
       "id": "movement-1",
@@ -2051,13 +2389,166 @@
           "y": 1,
           "direction": 1
         },
-        "maxGears": 6
+        "maxGears": 6,
+        "maxBelts": 2,
+        "beltLinks": [
+          {
+            "from": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 0,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0
+            },
+            "to": {
+              "x": 3,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0
+            },
+            "to": {
+              "x": 1,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 0
+            },
+            "to": {
+              "x": 4,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 3,
+              "y": 0
+            },
+            "to": {
+              "x": 3,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": 0
+            },
+            "to": {
+              "x": 4,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 1
+            },
+            "to": {
+              "x": 2,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 1
+            },
+            "to": {
+              "x": 3,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 1
+            },
+            "to": {
+              "x": 4,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 2
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 3,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 2
+            },
+            "to": {
+              "x": 4,
+              "y": 2
+            }
+          }
+        ]
       },
-      "explanation": "При каждом зацеплении направление вращения меняется. Непрерывная цепочка передаёт движение; несколько путей допустимы.",
+      "explanation": "Каждое зацепление шестерён меняет направление вращения, открытый ремень сохраняет его. Непрерывная согласованная передача соединяет привод с целью; несколько решений допустимы.",
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "mechanics",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "mechanics-gear-red",
+          "source": "mechanics-gear-ivory",
+          "gear": "mechanics-gear-red",
+          "target": "mechanics-gear-silver",
+          "socket": "mechanics-socket"
+        }
+      }
     },
     {
       "id": "movement-2",
@@ -2079,13 +2570,166 @@
           "y": 2,
           "direction": 1
         },
-        "maxGears": 6
+        "maxGears": 6,
+        "maxBelts": 2,
+        "beltLinks": [
+          {
+            "from": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 0,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0
+            },
+            "to": {
+              "x": 3,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0
+            },
+            "to": {
+              "x": 1,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 0
+            },
+            "to": {
+              "x": 4,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 3,
+              "y": 0
+            },
+            "to": {
+              "x": 3,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": 0
+            },
+            "to": {
+              "x": 4,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 1
+            },
+            "to": {
+              "x": 2,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 1
+            },
+            "to": {
+              "x": 3,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 1
+            },
+            "to": {
+              "x": 4,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 2
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 3,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 2
+            },
+            "to": {
+              "x": 4,
+              "y": 2
+            }
+          }
+        ]
       },
-      "explanation": "При каждом зацеплении направление вращения меняется. Непрерывная цепочка передаёт движение; несколько путей допустимы.",
+      "explanation": "Каждое зацепление шестерён меняет направление вращения, открытый ремень сохраняет его. Непрерывная согласованная передача соединяет привод с целью; несколько решений допустимы.",
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "mechanics",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "mechanics-gear-red",
+          "source": "mechanics-gear-ivory",
+          "gear": "mechanics-gear-red",
+          "target": "mechanics-gear-silver",
+          "socket": "mechanics-socket"
+        }
+      }
     },
     {
       "id": "movement-3",
@@ -2107,13 +2751,166 @@
           "y": 2,
           "direction": -1
         },
-        "maxGears": 6
+        "maxGears": 6,
+        "maxBelts": 2,
+        "beltLinks": [
+          {
+            "from": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 0,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0
+            },
+            "to": {
+              "x": 3,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 0
+            },
+            "to": {
+              "x": 1,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 0
+            },
+            "to": {
+              "x": 4,
+              "y": 0
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 3,
+              "y": 0
+            },
+            "to": {
+              "x": 3,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 4,
+              "y": 0
+            },
+            "to": {
+              "x": 4,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 1
+            },
+            "to": {
+              "x": 2,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 1
+            },
+            "to": {
+              "x": 3,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 1
+            },
+            "to": {
+              "x": 4,
+              "y": 1
+            }
+          },
+          {
+            "from": {
+              "x": 0,
+              "y": 2
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 3,
+              "y": 2
+            }
+          },
+          {
+            "from": {
+              "x": 2,
+              "y": 2
+            },
+            "to": {
+              "x": 4,
+              "y": 2
+            }
+          }
+        ]
       },
-      "explanation": "При каждом зацеплении направление вращения меняется. Непрерывная цепочка передаёт движение; несколько путей допустимы.",
+      "explanation": "Каждое зацепление шестерён меняет направление вращения, открытый ремень сохраняет его. Непрерывная согласованная передача соединяет привод с целью; несколько решений допустимы.",
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "mechanics",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "mechanics-gear-red",
+          "source": "mechanics-gear-ivory",
+          "gear": "mechanics-gear-red",
+          "target": "mechanics-gear-silver",
+          "socket": "mechanics-socket"
+        }
+      }
     },
     {
       "id": "lab-1",
@@ -2185,7 +2982,24 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "lab",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "laboratory-tube-gold",
+          "sample": "laboratory-tube-gold",
+          "comparison": "laboratory-tube-red",
+          "dropper": "laboratory-dropper",
+          "meter": "laboratory-meter",
+          "unknownSample": "laboratory-tube-red",
+          "testedSample": "laboratory-tube-gold",
+          "sample:a": "laboratory-tube-gold",
+          "sample:b": "laboratory-tube-red",
+          "sample:c": "laboratory-tube-gold",
+          "sample:d": "laboratory-tube-red",
+          "matchedSample": "laboratory-tube-gold"
+        }
+      }
     },
     {
       "id": "lab-2",
@@ -2257,7 +3071,24 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "lab",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "laboratory-tube-gold",
+          "sample": "laboratory-tube-gold",
+          "comparison": "laboratory-tube-red",
+          "dropper": "laboratory-dropper",
+          "meter": "laboratory-meter",
+          "unknownSample": "laboratory-tube-red",
+          "testedSample": "laboratory-tube-gold",
+          "sample:a": "laboratory-tube-gold",
+          "sample:b": "laboratory-tube-red",
+          "sample:c": "laboratory-tube-gold",
+          "sample:d": "laboratory-tube-red",
+          "matchedSample": "laboratory-tube-gold"
+        }
+      }
     },
     {
       "id": "lab-3",
@@ -2329,7 +3160,24 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "lab",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "laboratory-tube-gold",
+          "sample": "laboratory-tube-gold",
+          "comparison": "laboratory-tube-red",
+          "dropper": "laboratory-dropper",
+          "meter": "laboratory-meter",
+          "unknownSample": "laboratory-tube-red",
+          "testedSample": "laboratory-tube-gold",
+          "sample:a": "laboratory-tube-gold",
+          "sample:b": "laboratory-tube-red",
+          "sample:c": "laboratory-tube-gold",
+          "sample:d": "laboratory-tube-red",
+          "matchedSample": "laboratory-tube-gold"
+        }
+      }
     },
     {
       "id": "delivery-1",
@@ -2438,7 +3286,21 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "warehouse",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "warehouse-crate-a",
+          "crate": "warehouse-crate-a",
+          "crateAlternate": "warehouse-crate-b",
+          "carrier": "warehouse-pallet-jack",
+          "barrier": "warehouse-barrier",
+          "batch:a": "warehouse-crate-a",
+          "batch:b": "warehouse-crate-b",
+          "batch:c": "warehouse-crate-a",
+          "batch:d": "warehouse-crate-b"
+        }
+      }
     },
     {
       "id": "delivery-2",
@@ -2547,7 +3409,21 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "warehouse",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "warehouse-crate-a",
+          "crate": "warehouse-crate-a",
+          "crateAlternate": "warehouse-crate-b",
+          "carrier": "warehouse-pallet-jack",
+          "barrier": "warehouse-barrier",
+          "batch:a": "warehouse-crate-a",
+          "batch:b": "warehouse-crate-b",
+          "batch:c": "warehouse-crate-a",
+          "batch:d": "warehouse-crate-b"
+        }
+      }
     },
     {
       "id": "delivery-3",
@@ -2660,7 +3536,21 @@
       "points": 50,
       "duration": "3–5 мин",
       "offerId": "warehouse",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {
+          "preview": "warehouse-crate-a",
+          "crate": "warehouse-crate-a",
+          "crateAlternate": "warehouse-crate-b",
+          "carrier": "warehouse-pallet-jack",
+          "barrier": "warehouse-barrier",
+          "batch:a": "warehouse-crate-a",
+          "batch:b": "warehouse-crate-b",
+          "batch:c": "warehouse-crate-a",
+          "batch:d": "warehouse-crate-b"
+        }
+      }
     },
     {
       "id": "history-1",
@@ -2734,7 +3624,11 @@
       "points": 30,
       "duration": "3–5 мин",
       "offerId": "technology",
-      "demo": true
+      "demo": true,
+      "presentation": {
+        "schemaVersion": 1,
+        "sprites": {}
+      }
     }
   ],
   "offers": [
@@ -2996,6 +3890,43 @@
       "remaining": 5,
       "description": "Демонстрационная награда. Обмен тестовый; ассортимент и выдача требуют согласования.",
       "demo": true
+    }
+  ],
+  "games": [
+    {
+      "id": "shift",
+      "title": "Разберись в смене",
+      "description": "Исследуй показатели и принимай решения",
+      "previewSpriteId": "laboratory-meter"
+    },
+    {
+      "id": "signal",
+      "title": "Сигнал → действие",
+      "description": "Собери свою автоматическую линию",
+      "previewSpriteId": "automation-bottle-circle"
+    },
+    {
+      "id": "movement",
+      "title": "Передай движение",
+      "description": "Запусти собранный механизм",
+      "previewSpriteId": "mechanics-gear-red"
+    },
+    {
+      "id": "lab",
+      "title": "Лабораторный детектив",
+      "description": "Раскрой образец с помощью проверок",
+      "previewSpriteId": "laboratory-tube-gold"
+    },
+    {
+      "id": "delivery",
+      "title": "Собери и доставь",
+      "description": "Подготовь заказ и выбери маршрут",
+      "previewSpriteId": "warehouse-crate-a"
+    },
+    {
+      "id": "history",
+      "title": "Открой историю Очаково",
+      "description": "История и бренды компании"
     }
   ]
 }

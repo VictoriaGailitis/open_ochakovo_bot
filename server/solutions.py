@@ -43,38 +43,92 @@ def validate_signal(p, s):
 
 
 def validate_movement(p, s):
-    gears = s.get('gears')
-    if not isinstance(gears, list) or not 1 <= len(gears) <= p['maxGears']:
-        return ['Разместите доступные шестерни между приводом и целью.']
-    source = (p['source']['x'],p['source']['y'])
-    target = (p['target']['x'],p['target']['y'])
-    cells = [source,target]
-    for g in gears:
-        if not isinstance(g,dict) or not all(integer(g.get(k)) for k in ('x','y')):
-            return ['Некорректная координата шестерни.']
-        if not 0 <= g['x'] < p['width'] or not 0 <= g['y'] < p['height']:
-            return ['Шестерни должны находиться внутри поля.']
-        cells.append((g['x'],g['y']))
-    if len(set(cells))!=len(cells):
+    gears, belts = s.get('gears'), s.get('belts', [])
+    if not isinstance(belts, list):
+        return ['Ремни должны быть списком связей между валами.']
+    if not isinstance(gears, list) or len(gears) > p['maxGears'] or not (gears or belts):
+        return ['Разместите доступные детали между приводом и целью.']
+
+    def point(value):
+        if not isinstance(value, dict) or not all(integer(value.get(k)) for k in ('x', 'y')):
+            return None
+        if not 0 <= value['x'] < p['width'] or not 0 <= value['y'] < p['height']:
+            return None
+        return (value['x'], value['y'])
+
+    source, target = point(p['source']), point(p['target'])
+    if source is None or target is None or source == target:
+        return ['Некорректные валы учебного механизма.']
+    cells = [source, target]
+    for gear in gears:
+        cell = point(gear)
+        if cell is None:
+            return ['Шестерни должны иметь целые координаты внутри поля.']
+        cells.append(cell)
+    if len(set(cells)) != len(cells):
         return ['Шестерни не могут занимать одну клетку.']
-    directions = {source:p['source']['direction']}
+
+    def pair(link):
+        if not isinstance(link, dict) or set(link) != {'from', 'to'}:
+            return None
+        if any(not isinstance(link[end], dict) or set(link[end]) != {'x', 'y'} for end in ('from', 'to')):
+            return None
+        left, right = point(link['from']), point(link['to'])
+        if left is None or right is None or left == right:
+            return None
+        return tuple(sorted((left, right)))
+
+    allowed = set()
+    if belts:
+        maximum, links = p.get('maxBelts'), p.get('beltLinks')
+        if not integer(maximum) or maximum <= 0 or not isinstance(links, list):
+            return ['В этом уровне ремни не предусмотрены.']
+        if len(belts) > maximum:
+            return ['Превышено доступное количество ремней.']
+        for link in links:
+            key = pair(link)
+            if key is None:
+                return ['Некорректные допустимые связи учебного механизма.']
+            allowed.add(key)
+
+    edges = {cell: [] for cell in cells}
+    for index, cell in enumerate(cells):
+        for other in cells[index + 1:]:
+            if abs(cell[0] - other[0]) + abs(cell[1] - other[1]) == 1:
+                edges[cell].append((other, -1))
+                edges[other].append((cell, -1))
+    seen = set()
+    for belt in belts:
+        key = pair(belt)
+        if key is None:
+            return ['Ремень должен соединять два разных вала внутри поля.']
+        if key in seen:
+            return ['Одна пара валов не может иметь два одинаковых ремня.']
+        if key not in allowed:
+            return ['Для этой пары валов ремень не предусмотрен.']
+        left, right = key
+        if left not in edges or right not in edges:
+            return ['Закрепите ремень только на существующих валах.']
+        seen.add(key)
+        edges[left].append((right, 1))
+        edges[right].append((left, 1))
+
+    directions = {source: p['source']['direction']}
     pending = deque([source])
     while pending:
         cell = pending.popleft()
-        for other in cells:
-            if abs(cell[0]-other[0])+abs(cell[1]-other[1])!=1:
-                continue
-            direction = -directions[cell]
-            if other in directions and directions[other]!=direction:
+        for other, multiplier in edges[cell]:
+            direction = directions[cell] * multiplier
+            if other in directions and directions[other] != direction:
                 return ['Механизм заблокирован противоположными передачами.']
             if other not in directions:
-                directions[other]=direction
+                directions[other] = direction
                 pending.append(other)
     if target not in directions:
-        return ['Нет непрерывного зацепления от привода до цели.']
-    if len(directions)!=len(cells):
-        return ['Одна из шестерён не соединена с механизмом.']
-    if directions[target]!=p['target']['direction']:
+        return ['Нет непрерывной передачи от привода до цели.']
+    if len(directions) != len(cells):
+        return ['Одна из деталей не соединена с механизмом.']
+    if directions[target] != p['target']['direction']:
         return ['Целевое колесо вращается в неверном направлении.']
     return []
 
