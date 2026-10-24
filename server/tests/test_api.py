@@ -8,13 +8,15 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
+from datetime import date, datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from server.app import API, APIError, CATALOG, Store, create_server
+from server.app import API, APIError, CATALOG, Store, create_server, moscow_today
 from server.solutions import validate
 
 
@@ -101,6 +103,71 @@ class APITest(unittest.TestCase):
         self.assert_error(422,lambda:self.call('PUT','/api/profile',{**PROFILE,'birthDate':'2027-01-01'},headers))
         self.call('PUT','/api/profile',{**PROFILE,'contact':'+7 (999) 123-45-67'},headers)
         self.assertTrue(self.complete(headers=headers)['correct'])
+
+    def test_age_limit_uses_exact_eighteenth_birthday_in_moscow(self):
+        with patch('server.app.moscow_today',return_value=date(2026,10,24)):
+            for birthday in ('2008-10-24','2008-10-23','2004-02-29'):
+                with self.subTest(birthday=birthday):
+                    self.assertEqual(API.profile({**PROFILE,'birthDate':birthday})['birthDate'],birthday)
+            for birthday in ('2008-10-25','2009-10-24','2026-10-24'):
+                with self.subTest(birthday=birthday):
+                    error=self.assert_error(422,lambda:API.profile({**PROFILE,'birthDate':birthday}))
+                    self.assertEqual(error.code,'age_restricted')
+                    self.assertEqual(set(error.details),{'birthDate'})
+
+    def test_invalid_birth_dates_have_validation_error_not_age_restriction(self):
+        with patch('server.app.moscow_today',return_value=date(2026,10,24)):
+            invalid=('2026-10-25','2027-01-01','2008-02-30','2007-02-29',
+                     '20081024','2008-W43-5','2008-1-2',' 2008-10-24',
+                     '2008-10-24 ','2008-10-24T00:00:00','0000-01-01','1900-01-01')
+            for birthday in invalid:
+                with self.subTest(birthday=birthday):
+                    error=self.assert_error(422,lambda:API.profile({**PROFILE,'birthDate':birthday}))
+                    self.assertEqual(error.code,'validation_error')
+                    self.assertIn('birthDate',error.details)
+
+    def test_leap_day_birthdate_has_calendar_age_boundary(self):
+        # In a non-leap year the month/day comparison reaches Feb 29 on March 1.
+        with patch('server.app.moscow_today',return_value=date(2026,2,28)):
+            error=self.assert_error(422,lambda:API.profile({**PROFILE,'birthDate':'2008-02-29'}))
+            self.assertEqual(error.code,'age_restricted')
+        with patch('server.app.moscow_today',return_value=date(2026,3,1)):
+            self.assertEqual(API.profile({**PROFILE,'birthDate':'2008-02-29'})['birthDate'],'2008-02-29')
+
+    def test_moscow_date_uses_plus_three_at_utc_day_boundary(self):
+        instant=datetime(2026,10,23,21,30,tzinfo=timezone.utc)
+        with patch('server.app.datetime') as clock:
+            clock.now.side_effect=lambda tz:instant.astimezone(tz)
+            self.assertEqual(moscow_today(),date(2026,10,24))
+            self.assertEqual(API.profile({**PROFILE,'birthDate':'2008-10-24'})['birthDate'],'2008-10-24')
+            requested_zones=[call.args[0] for call in clock.now.call_args_list]
+            self.assertIn(timezone(timedelta(hours=3)),requested_zones)
+
+    def test_underage_profile_is_not_saved_and_can_be_corrected_without_ban(self):
+        headers=self.login('age-restricted-candidate',False)
+        with patch('server.app.moscow_today',return_value=date(2026,10,24)):
+            error=self.assert_error(422,lambda:self.call('PUT','/api/profile',{**PROFILE,'birthDate':'2009-10-24'},headers))
+            self.assertEqual(error.code,'age_restricted')
+            blocked=self.call('GET','/api/bootstrap',headers=headers)
+            self.assertIsNone(blocked['profile'])
+            self.assertEqual(blocked['applications'],[])
+            application_error=self.assert_error(409,lambda:self.call('POST','/api/applications',{'offerId':'lab'},headers))
+            self.assertEqual(application_error.code,'profile_required')
+            game_error=self.assert_error(409,lambda:self.complete(headers=headers))
+            self.assertEqual(game_error.code,'profile_required')
+            self.assertIsNone(self.call('GET','/api/bootstrap',headers=headers)['profile'])
+            # A mistyped birthday does not permanently block the account or session.
+            saved=self.call('PUT','/api/profile',{**PROFILE,'birthDate':'2008-10-24'},headers)
+            self.assertEqual(saved['profile']['birthDate'],'2008-10-24')
+            self.assertEqual(self.call('POST','/api/applications',{'offerId':'lab'},headers)['application']['status'],'sent')
+
+    def test_underage_edit_does_not_change_existing_adult_profile(self):
+        original=self.call('GET','/api/bootstrap')['profile']
+        with patch('server.app.moscow_today',return_value=date(2026,10,24)):
+            error=self.assert_error(422,lambda:self.call('PUT','/api/profile',{**PROFILE,'fullName':'Другое имя','birthDate':'2009-10-24'}))
+            self.assertEqual(error.code,'age_restricted')
+        self.assertEqual(self.call('GET','/api/bootstrap')['profile'],original)
+        self.assertEqual(self.call('POST','/api/applications',{'offerId':'lab'})['application']['profile'],original)
 
     def test_draft_persistence_and_user_isolation(self):
         draft={'rules':[{'condition':'red','output':'left'}],'step':2}
@@ -326,6 +393,16 @@ class HTTPTest(unittest.TestCase):
         with urlopen(request) as response:
             self.assertEqual(response.status,200)
             self.assertEqual(response.read(),b'')
+
+    def test_http_underage_error_contract(self):
+        _,auth=self.request('/api/auth','POST',{'devUserId':'http-age-user'})
+        headers={'Authorization':'Bearer '+auth['token']}
+        with patch('server.app.moscow_today',return_value=date(2026,10,24)):
+            status,error=self.request('/api/profile','PUT',{**PROFILE,'birthDate':'2009-10-24'},headers)
+        self.assertEqual(status,422)
+        self.assertEqual(error['code'],'age_restricted')
+        self.assertIn('birthDate',error['details'])
+        self.assertIsNone(self.request('/api/bootstrap',headers=headers)[1]['profile'])
 
     def test_http_end_to_end(self):
         status,auth=self.request('/api/auth','POST',{'devUserId':'http-user'})

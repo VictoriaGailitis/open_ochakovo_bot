@@ -33,6 +33,10 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def moscow_today():
+    return datetime.now(timezone(timedelta(hours=3))).date()
+
+
 def ident():
     return secrets.token_urlsafe(18)
 
@@ -217,13 +221,18 @@ class API:
         for key in required:
             if not isinstance(body.get(key),str) or not body[key].strip(): errors[key]='Заполните поле.'
             elif len(body[key])>300: errors[key]='Не более 300 символов.'
+        age_restricted=False
         if not errors.get('birthDate'):
             try:
-                birthday=date.fromisoformat(body['birthDate'])
-                today=datetime.now(timezone(timedelta(hours=3))).date()
+                raw_birthday=body['birthDate']
+                if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}',raw_birthday): raise ValueError()
+                birthday=date.fromisoformat(raw_birthday)
+                today=moscow_today()
+                if birthday.isoformat()!=raw_birthday or birthday>today: raise ValueError()
                 age=today.year-birthday.year-((today.month,today.day)<(birthday.month,birthday.day))
-                if age<18 or age>100: raise ValueError()
-            except ValueError: errors['birthDate']='Приложение рассчитано на участников от 18 до 100 лет. Проверьте дату рождения.'
+                if age>100: raise ValueError()
+                age_restricted=age<18
+            except ValueError: errors['birthDate']='Укажите корректную дату рождения в формате ГГГГ-ММ-ДД, не позднее сегодняшней даты.'
         if not errors.get('fullName') and len(body['fullName'].strip().split())<2: errors['fullName']='Укажите имя и фамилию.'
         if not errors.get('contact'):
             contact=body['contact'].strip()
@@ -234,6 +243,9 @@ class API:
         for flag in ('futureContact',):
             if flag in body and type(body[flag]) is not bool: errors[flag]='Выберите да или нет.'
         if 'schedule' in body and (not isinstance(body['schedule'],str) or len(body['schedule'])>300): errors['schedule']='Не более 300 символов.'
+        if age_restricted:
+            message='Регистрация доступна с 18 лет. Возвращайтесь, когда вам исполнится 18.'
+            raise APIError(422,message,'age_restricted',{'birthDate':message})
         if errors: raise APIError(422,'Проверьте заполнение профиля.','validation_error',errors)
         return {**{k:body[k].strip() for k in required},'schedule':body.get('schedule','').strip(),'consent':True,'futureContact':body.get('futureContact',False),'consentedAt':now()}
 

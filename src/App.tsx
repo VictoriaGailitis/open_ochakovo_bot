@@ -6,7 +6,9 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { api, initialize, requestNotifications } from "./api";
+import { api, ApiError, initialize, requestNotifications } from "./api";
+import { moscowCalendarDate, registrationAge } from "./ageEligibility";
+import { AgeRestricted } from "./components/AgeRestricted";
 import { GamePlayer } from "./games/Games";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
@@ -237,6 +239,23 @@ export default function App() {
       setBusy(false);
     }
   }
+  async function saveProfile(
+    value: Profile,
+    destination: string,
+    message: string,
+  ) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/profile", "PUT", value);
+      await refresh();
+      navigate(destination);
+      setToast(message);
+    } finally {
+      setBusy(false);
+    }
+  }
   function goal(reward: Reward) {
     setRewardGoal(reward.id);
     localStore.set(
@@ -324,12 +343,7 @@ export default function App() {
             busy={busy}
             error={error}
             onBack={() => setStarted(false)}
-            onSave={(p) =>
-              act(async () => {
-                await api("/profile", "PUT", p);
-                navigate("home");
-              }, "Профиль сохранён")
-            }
+            onSave={(p) => saveProfile(p, "home", "Профиль сохранён")}
           />
         </main>
       </div>
@@ -910,12 +924,7 @@ export default function App() {
           busy={busy}
           error=""
           onBack={() => navigate("profile")}
-          onSave={(p) =>
-            act(async () => {
-              await api("/profile", "PUT", p);
-              navigate("profile");
-            }, "Профиль обновлён")
-          }
+          onSave={(p) => saveProfile(p, "profile", "Профиль обновлён")}
         />
       );
       break;
@@ -1071,27 +1080,36 @@ function ProfileForm({
   const [value, setValue] = useState(initial);
   const [step, setStep] = useState(1);
   const [validation, setValidation] = useState("");
+  const [ageRestricted, setAgeRestricted] = useState(false);
+  const dateInput = useRef<HTMLInputElement>(null);
+  const correctDate = useRef(false);
+  useEffect(() => {
+    if (!ageRestricted && correctDate.current) {
+      correctDate.current = false;
+      dateInput.current?.focus();
+    }
+  }, [ageRestricted]);
   const set = (field: keyof Profile, fieldValue: string | boolean) =>
     setValue((v) => ({ ...v, [field]: fieldValue }));
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setValidation("");
+    const eligibility = registrationAge(value.birthDate);
+    if (eligibility === "underage") {
+      setAgeRestricted(true);
+      return;
+    }
+    if (eligibility === "invalid") {
+      setStep(1);
+      setValidation(
+        "Проверь дату рождения: укажи существующую дату в прошлом.",
+      );
+      return;
+    }
     if (step === 1) {
       if (value.fullName.trim().split(/\s+/).length < 2) {
         setValidation("Укажи имя и фамилию.");
-        return;
-      }
-      const today = new Intl.DateTimeFormat("sv-SE", {
-        timeZone: "Europe/Moscow",
-      }).format(new Date());
-      const age =
-        Number(today.slice(0, 4)) -
-        Number(value.birthDate.slice(0, 4)) -
-        (today.slice(5) < value.birthDate.slice(5) ? 1 : 0);
-      if (!Number.isFinite(age) || age < 18 || age > 100) {
-        setValidation(
-          "Приложение рассчитано на участников от 18 лет. Проверь дату рождения.",
-        );
         return;
       }
       if (
@@ -1109,13 +1127,37 @@ function ProfileForm({
       window.scrollTo(0, 0);
       return;
     }
-    void onSave({
-      ...value,
-      fullName: value.fullName.trim(),
-      contact: value.contact.trim(),
-      education: value.education.trim(),
-    });
+    try {
+      await onSave({
+        ...value,
+        fullName: value.fullName.trim(),
+        contact: value.contact.trim(),
+        education: value.education.trim(),
+      });
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.code === "age_restricted") {
+        setAgeRestricted(true);
+      } else {
+        setValidation(
+          failure instanceof Error
+            ? failure.message
+            : "Не удалось сохранить профиль. Попробуй ещё раз.",
+        );
+      }
+    }
   }
+  if (ageRestricted)
+    return (
+      <AgeRestricted
+        onBack={onBack}
+        onCorrectDate={() => {
+          correctDate.current = true;
+          setStep(1);
+          setValidation("");
+          setAgeRestricted(false);
+        }}
+      />
+    );
   return (
     <form className="stack" onSubmit={submit}>
       <button
@@ -1154,10 +1196,21 @@ function ProfileForm({
             <input
               className="form-input"
               type="date"
+              ref={dateInput}
+              autoComplete="bday"
               required
+              max={moscowCalendarDate()}
+              aria-describedby="registration-age-hint"
               value={value.birthDate}
               onChange={(e) => set("birthDate", e.target.value)}
+              onBlur={() => {
+                if (registrationAge(value.birthDate) === "underage")
+                  setAgeRestricted(true);
+              }}
             />
+            <span className="small muted" id="registration-age-hint">
+              Практика и регистрация — с 18 лет.
+            </span>
           </label>
           <label className="field">
             Контакт для связи

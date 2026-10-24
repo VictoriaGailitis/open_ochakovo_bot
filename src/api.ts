@@ -8,6 +8,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code?: string,
+    public details?: Record<string, string>,
   ) {
     super(message);
   }
@@ -35,6 +37,8 @@ export async function api<T>(
         value?.message ??
         "Сервер недоступен. Попробуй ещё раз.",
       response.status,
+      value?.code,
+      value?.details,
     );
   return value as T;
 }

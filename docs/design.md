@@ -21,3 +21,7 @@ The installed desktop plugin required a matching MCP version and a persistent lo
 The updated investigation screens were extracted through Figwright as full design context and PNG references, including all twelve metric details, the line scheme, checks, event details, evidence list, explanation form and team review. The usable observation example contains three selected facts; a hidden duplicate frame is excluded from implementation. All raw context, screenshots and export responses remain in the ignored local design directory.
 
 The investigation follows the same 390 px frame and 20 px gutters. Its content uses 12 px vertical spacing; the overview has three 111⅓ px columns with 8 px gaps and 78 px cards. Metric detail charts occupy 350 × 176 px and the scheme occupies 350 × 270 px. Both bind their displayed measurements to scenario data. The scheme connector is exported unchanged as a local SVG; typography, controls, cards and data visualization labels remain accessible application content.
+
+## Registration age restriction
+
+A dedicated registration screen uses the existing typography and colors, a blush circular backdrop, a restrained 18+ badge and a sad variation of the opener mascot. It explains the age condition and offers a date-correction action without registering a profile. The illustration is a local transparent PNG generated from the existing mascot using the built-in image-generation tool; it is not a new extracted design frame. See `docs/age-gate.md` for the text, source asset and prompt.
