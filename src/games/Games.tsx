@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { nextDraftRevision } from "../draftClock";
+import { DraftConflictError, DraftSnapshotClock } from "../draftClock";
 import type { CSSProperties } from "react";
 import type {
   CompletionResult,
@@ -23,9 +23,12 @@ import {
   same,
 } from "./mechanics";
 import { referenceStages } from "./ReferenceStages";
+import { ShiftGame } from "./ShiftGame";
+import type { ShiftTask } from "./ShiftTypes";
 import "./games.css";
 
 type Draft = Record<string, unknown>;
+type StandardTask = Task & { game: Exclude<Task["game"], "shift"> };
 interface EditorProps {
   task: Task;
   draft: Draft;
@@ -53,7 +56,7 @@ const initials: Record<string, string> = {
   delivery: "05",
   history: "ТЕСТ",
 };
-function initial(task: Task): Draft {
+function initial(task: StandardTask): Draft {
   switch (task.game) {
     case "signal":
       return { rules: [{ condition: "always", output: "left" }] };
@@ -72,17 +75,33 @@ const errorText = (error: unknown) =>
     ? error.message
     : "Не удалось связаться с сервером. Попробуй ещё раз.";
 export function GamePlayer(props: GamePlayerProps) {
-  return <GameSession key={props.task.id} {...props} />;
+  if (props.task.game === "shift") {
+    return (
+      <ShiftGame
+        key={props.task.id}
+        {...props}
+        task={props.task as ShiftTask}
+      />
+    );
+  }
+  return (
+    <GameSession
+      key={props.task.id}
+      {...props}
+      task={props.task as StandardTask}
+    />
+  );
 }
 export default GamePlayer;
 function GameSession({
   task,
   draft: saved,
+  draftRevision = 0,
   onSave,
   onComplete,
   onCareer,
   onExit,
-}: GamePlayerProps) {
+}: Omit<GamePlayerProps, "task"> & { task: StandardTask }) {
   const [draft, setDraft] = useState<Draft>(() => ({
     ...initial(task),
     ...(saved && typeof saved === "object" && !Array.isArray(saved)
@@ -101,6 +120,9 @@ function GameSession({
     saveQueue = useRef(Promise.resolve()),
     mounted = useRef(true),
     shouldSave = useRef(false);
+  const snapshotClock = useRef<DraftSnapshotClock<Draft> | null>(null);
+  if (!snapshotClock.current)
+    snapshotClock.current = new DraftSnapshotClock(draft, draftRevision);
   saveRef.current = onSave;
   latest.current = draft;
   shouldSave.current = editing && !result?.correct;
@@ -110,7 +132,10 @@ function GameSession({
     const saveBeforeReload = () => {
       if (shouldSave.current)
         void saveRef
-          .current(latest.current, nextDraftRevision())
+          .current(
+            latest.current,
+            snapshotClock.current!.revisionOf(latest.current),
+          )
           .catch(() => undefined);
     };
     window.addEventListener("pagehide", saveBeforeReload);
@@ -122,10 +147,31 @@ function GameSession({
     };
   }, []);
   function persist(value: Draft) {
-    const revision = nextDraftRevision();
+    const revision = snapshotClock.current!.revisionOf(value);
     const operation = saveQueue.current
       .catch(() => undefined)
-      .then(() => saveRef.current(value, revision));
+      .then(() => saveRef.current(value, revision))
+      .catch((error) => {
+        if (error instanceof DraftConflictError && latest.current === value) {
+          const restored = {
+            ...initial(task),
+            ...(error.draft &&
+            typeof error.draft === "object" &&
+            !Array.isArray(error.draft)
+              ? error.draft
+              : {}),
+          };
+          snapshotClock.current!.restore(restored, error.revision);
+          latest.current = restored;
+          if (mounted.current) {
+            setDraft(restored);
+            setError(
+              "Черновик изменён в другой вкладке. Загружена актуальная версия сервера; проверь данные.",
+            );
+          }
+        }
+        throw error;
+      });
     saveQueue.current = operation;
     return operation;
   }
@@ -170,6 +216,8 @@ function GameSession({
     }
   }
   const change = (value: Draft) => {
+    snapshotClock.current!.edit(value);
+    latest.current = value;
     setDraft(value);
     setResult(null);
     setError("");

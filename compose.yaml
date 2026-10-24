@@ -1,0 +1,47 @@
+name: ochakovo
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      DEV_AUTH: "0"
+      VK_APP_ID: ${VK_APP_ID:?Set VK_APP_ID in .env.production}
+      VK_APP_SECRET: ${VK_APP_SECRET:?Set VK_APP_SECRET in .env.production}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env.production}
+      VK_LAUNCH_TTL: "3600"
+    volumes:
+      - app_data:/app/.data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  https:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  app_data:
+  caddy_data:
+  caddy_config:

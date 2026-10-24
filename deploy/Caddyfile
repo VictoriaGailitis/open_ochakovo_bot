@@ -1,0 +1,6 @@
+{$APP_DOMAIN} {
+	encode zstd gzip
+	# Keep Host and the original launch query for signature verification.
+	# Access logging is deliberately disabled: queries contain VK credentials.
+	reverse_proxy app:3001
+}

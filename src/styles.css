@@ -997,3 +997,15 @@ textarea:focus {
 .app-shell.welcome {
   padding-top: calc(20px + env(safe-area-inset-top, 0px));
 }
+
+/* The shift workspace follows its dedicated full-height design frames. */
+.app-shell-shift .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--paper);
+  padding-bottom: 12px;
+}
+.screen-shift {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}

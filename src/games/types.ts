@@ -1,4 +1,7 @@
-export type GameKind = "signal" | "movement" | "lab" | "delivery" | "history";
+import type { ShiftPuzzle } from "./ShiftTypes";
+
+export type GameKind =
+  "shift" | "signal" | "movement" | "lab" | "delivery" | "history";
 export interface Point {
   x: number;
   y: number;
@@ -63,7 +66,12 @@ export interface Task {
   points: number;
   duration: string;
   puzzle:
-    SignalPuzzle | MovementPuzzle | LabPuzzle | DeliveryPuzzle | HistoryPuzzle;
+    | ShiftPuzzle
+    | SignalPuzzle
+    | MovementPuzzle
+    | LabPuzzle
+    | DeliveryPuzzle
+    | HistoryPuzzle;
   explanation?: string;
   offerId?: string;
   demo?: boolean;
@@ -80,7 +88,8 @@ export interface CompletionResult {
 export interface GamePlayerProps {
   task: Task;
   draft: unknown;
-  onSave: (draft: unknown, revision?: number) => Promise<void>;
+  draftRevision?: number;
+  onSave: (draft: unknown, revision: number) => Promise<void>;
   onComplete: (solution: unknown) => Promise<CompletionResult>;
   onCareer: (direction: string) => void;
   onExit: () => void;

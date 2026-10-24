@@ -10,7 +10,7 @@ import { api, initialize, requestNotifications } from "./api";
 import { GamePlayer } from "./games/Games";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
-import { nextDraftRevision, syncDraftClock } from "./draftClock";
+import { DraftConflictError, syncDraftClock } from "./draftClock";
 import { localStore, sessionStore } from "./storage";
 import {
   DIRECTIONS,
@@ -51,6 +51,7 @@ const emptyProfile: Profile = {
   futureContact: false,
 };
 const gameLabels: Record<string, string> = {
+  shift: "Исследование смены",
   signal: "Алгоритм",
   movement: "Конструктор",
   lab: "Исследование",
@@ -58,6 +59,7 @@ const gameLabels: Record<string, string> = {
   history: "История и бренды",
 };
 const gameNumbers: Record<string, string> = {
+  shift: "01",
   signal: "02",
   movement: "03",
   lab: "04",
@@ -153,6 +155,7 @@ export default function App() {
   } | null>(null);
   const [rewardGoal, setRewardGoal] = useState("");
   const headingRef = useRef<HTMLElement>(null);
+  const draftWriteRevision = useRef<Record<string, number>>({});
   const refresh = useCallback(async () => {
     const next = await api<Bootstrap>("/bootstrap");
     syncDraftClock(
@@ -340,6 +343,7 @@ export default function App() {
         ? "events"
         : "home";
   const task = catalog.tasks.find((t) => t.id === route.id);
+  const shiftScreen = page === "game" && task?.game === "shift";
   const offer = catalog.offers.find((o) => o.id === route.id);
   const event = catalog.events.find((e) => e.id === route.id);
   const reward = catalog.rewards.find((r) => r.id === route.id);
@@ -457,8 +461,17 @@ export default function App() {
           key={task.id}
           task={task}
           draft={progress.find((p) => p.task === task.id)?.draft}
+          draftRevision={
+            progress.find((p) => p.task === task.id)?.revision ??
+            progress.find((p) => p.task === task.id)?.draft_revision ??
+            0
+          }
           onSave={async (draft, requestedRevision) => {
-            const revision = requestedRevision ?? nextDraftRevision();
+            const revision = requestedRevision;
+            draftWriteRevision.current[task.id] = Math.max(
+              draftWriteRevision.current[task.id] ?? 0,
+              revision,
+            );
             setData((current) => {
               if (!current) return current;
               const previous = current.progress.find((p) => p.task === task.id);
@@ -480,10 +493,41 @@ export default function App() {
               };
             });
             try {
-              await api(`/tasks/${task.id}/draft`, "PUT", { draft, revision });
+              const saved = await api<{
+                saved: boolean;
+                revision: number;
+                draft?: unknown;
+              }>(`/tasks/${task.id}/draft`, "PUT", { draft, revision });
+              if (saved.saved === false) {
+                syncDraftClock([saved.revision]);
+                if (draftWriteRevision.current[task.id] > revision) return;
+                setData((current) => {
+                  if (!current) return current;
+                  const previous = current.progress.find(
+                    (p) => p.task === task.id,
+                  );
+                  if ((previous?.revision ?? 0) > saved.revision)
+                    return current;
+                  return {
+                    ...current,
+                    progress: [
+                      ...current.progress.filter((p) => p.task !== task.id),
+                      {
+                        task: task.id,
+                        draft: saved.draft,
+                        revision: saved.revision,
+                        completed: previous?.completed ?? null,
+                      },
+                    ],
+                  };
+                });
+                throw new DraftConflictError(saved.draft, saved.revision);
+              }
             } catch (e) {
               setToast(
-                "Прогресс не сохранён на сервере. Вернись в задание и повтори сохранение.",
+                e instanceof DraftConflictError
+                  ? e.message
+                  : "Прогресс не сохранён на сервере. Вернись в задание и повтори сохранение.",
               );
               throw e;
             }
@@ -884,7 +928,7 @@ export default function App() {
       );
   }
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${shiftScreen ? "app-shell-shift" : ""}`}>
       <header className="app-header row spread">
         <button className="brand button-ghost" onClick={() => navigate("home")}>
           Очаково: изнутри
@@ -906,7 +950,11 @@ export default function App() {
           </button>
         </div>
       </header>
-      <main className="screen stack" ref={headingRef} tabIndex={-1}>
+      <main
+        className={`screen stack ${shiftScreen ? "screen-shift" : ""}`}
+        ref={headingRef}
+        tabIndex={-1}
+      >
         {error && (
           <div className="error" role="alert">
             {error}
@@ -921,24 +969,26 @@ export default function App() {
         )}
         {content}
       </main>
-      <nav className="bottom-nav" aria-label="Основная навигация">
-        {[
-          ["home", "⌂", "Для тебя"],
-          ["tasks", "◇", "Задания"],
-          ["career", "▣", "Карьера"],
-          ["events", "▦", "События"],
-        ].map(([key, icon, title]) => (
-          <button
-            key={key}
-            className={`nav-item ${activeTab === key ? "active" : ""}`}
-            aria-current={activeTab === key ? "page" : undefined}
-            onClick={() => navigate(key)}
-          >
-            <span aria-hidden="true">{icon}</span>
-            <span>{title}</span>
-          </button>
-        ))}
-      </nav>
+      {!shiftScreen && (
+        <nav className="bottom-nav" aria-label="Основная навигация">
+          {[
+            ["home", "⌂", "Для тебя"],
+            ["tasks", "◇", "Задания"],
+            ["career", "▣", "Карьера"],
+            ["events", "▦", "События"],
+          ].map(([key, icon, title]) => (
+            <button
+              key={key}
+              className={`nav-item ${activeTab === key ? "active" : ""}`}
+              aria-current={activeTab === key ? "page" : undefined}
+              onClick={() => navigate(key)}
+            >
+              <span aria-hidden="true">{icon}</span>
+              <span>{title}</span>
+            </button>
+          ))}
+        </nav>
+      )}
       {toast && (
         <div role="status" className="toast">
           {toast}
@@ -1300,21 +1350,6 @@ function Tasks({
           ))}
         </select>
       </label>
-      {topic !== "history" && state === "all" && (
-        <article
-          className="card task-card task-unavailable"
-          aria-label="Разберись в смене — скоро"
-        >
-          <span className="task-number">01</span>
-          <div className="task-info stack">
-            <p className="eyebrow">СИМУЛЯТОР · СКОРО</p>
-            <h2>Разберись в смене</h2>
-            <p className="small muted">
-              Новые экраны и механика появятся позже.
-            </p>
-          </div>
-        </article>
-      )}
       {!visibleTasks.length && (
         <Empty>
           Заданий с такими условиями пока нет. Измени фильтр, чтобы увидеть
