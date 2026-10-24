@@ -26,6 +26,8 @@ export interface Offer {
   deadline?: string;
 }
 export interface CareerEvent {
+  audience?: "candidate" | "staff" | "all";
+  published?: boolean;
   id: string;
   title: string;
   date: string;
@@ -85,6 +87,7 @@ export interface Application {
   created: string;
   profile: Profile;
   userId?: string;
+  referral?: { code: string; referrerUserId?: string; referrerName?: string; created?: string } | null;
 }
 export interface Registration {
   id: string;

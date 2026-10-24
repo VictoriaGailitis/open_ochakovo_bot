@@ -6,7 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { api, ApiError, initialize, requestNotifications } from "./api";
+import { api, ApiError, initialize, requestNotifications, loadCandidateMedia } from "./api";
 import { moscowCalendarDate, registrationAge } from "./ageEligibility";
 import { AgeRestricted } from "./components/AgeRestricted";
 import { EventActivities } from "./components/EventActivities";
@@ -16,6 +16,8 @@ import { GameCatalog } from "./games/GameCatalog";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
 import { StaffPortal } from "./practice/StaffPortal";
+import { Learning } from "./learning/Learning";
+import { ReferralInput } from "./referrals";
 import { DraftConflictError, syncDraftClock } from "./draftClock";
 import { localStore, sessionStore } from "./storage";
 import {
@@ -276,7 +278,7 @@ export default function App() {
   const privacy = page === "privacy";
 
   if (page === "admin") return <Admin />;
-  if (["login", "practice", "mentor"].includes(page)) return <StaffPortal page={page} />;
+  if (["login", "practice", "mentor", "employee", "community"].includes(page)) return <StaffPortal page={page} />;
   if (loading)
     return (
       <main className="app-shell screen loading" aria-busy="true">
@@ -356,7 +358,9 @@ export default function App() {
       </div>
     );
   }
-  const activeTab = ["tasks", "game"].includes(page)
+  const activeTab = page === "materials" || (page === "game" && route.id === "history-1")
+    ? "materials"
+    : ["tasks", "game"].includes(page)
     ? "tasks"
     : ["career", "offer", "applications"].includes(page)
       ? "career"
@@ -364,7 +368,7 @@ export default function App() {
         ? "events"
         : "home";
   const task = catalog.tasks.find((t) => t.id === route.id);
-  const gameScreen = page === "game" && Boolean(task);
+  const gameScreen = page === "game" && Boolean(task) && task?.game !== "history";
   const shiftScreen = gameScreen && task?.game === "shift";
   const offer = catalog.offers.find((o) => o.id === route.id);
   const event = catalog.events.find((e) => e.id === route.id);
@@ -390,6 +394,9 @@ export default function App() {
   let content: ReactNode;
 
   switch (page) {
+    case "materials":
+      content = <Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId={route.id} onEarned={async () => { await refresh(); }} />;
+      break;
     case "home":
       content = (
         <>
@@ -486,6 +493,10 @@ export default function App() {
       );
       break;
     case "game":
+      if (task?.game === "history") {
+        content = <><Back page="tasks">К заданиям</Back><Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId="ochakovo-history" onEarned={async () => { await refresh(); }} /></>;
+        break;
+      }
       content = task ? (
         <GamePlayer
           key={task.id}
@@ -604,7 +615,8 @@ export default function App() {
           offer={offer}
           profile={profile}
           application={data.applications.find((a) => a.offer === offer.id)}
-          onApply={() =>
+          key={offer.id}
+          onApply={(referralCode) =>
             setConfirm({
               title: "Отправить отклик?",
               body: (
@@ -613,6 +625,7 @@ export default function App() {
                     <strong>{offer.title}</strong>
                   </p>
                   <ProfileSummary profile={profile} />
+                  {referralCode && <p className="notice">Код рекомендации: <strong>{referralCode}</strong>. HR увидит отметку в резюме.</p>}
                   <p className="small muted">
                     Демонстрационная заявка сохранится в приложении и будет
                     доступна в кабинете HR. Баллы за отклик не начисляются.
@@ -622,7 +635,7 @@ export default function App() {
               label: "Подтвердить отправку",
               action: () =>
                 act(async () => {
-                  await api("/applications", "POST", { offerId: offer.id });
+                  await api("/applications", "POST", { offerId: offer.id, referralCode });
                   navigate("applications");
                 }, "Отклик получен приложением"),
             })
@@ -649,6 +662,7 @@ export default function App() {
                   {catalog.offers.find((o) => o.id === a.offer)?.title ??
                     a.offer}
                 </h2>
+                {a.referral && <p className="tag">★ Рекомендация · {a.referral.code}</p>}
                 <p className="small muted">
                   Отправлен {date(a.created)} · № {a.id.slice(0, 8)}
                 </p>
@@ -1054,6 +1068,7 @@ export default function App() {
         <nav className="bottom-nav" aria-label="Основная навигация">
           {[
             ["home", "⌂", "Для тебя"],
+            ["materials", "▤", "Материалы"],
             ["tasks", "◇", "Задания"],
             ["career", "▣", "Карьера"],
             ["events", "▦", "События"],
@@ -1544,8 +1559,9 @@ function OfferDetail({
   offer: Offer;
   profile: Profile;
   application?: Application;
-  onApply: () => void;
+  onApply: (referralCode: string) => void;
 }) {
+  const [referralCode, setReferralCode] = useState("");
   return (
     <>
       <Back page="career" />
@@ -1602,7 +1618,10 @@ function OfferDetail({
           </Button>
         </>
       ) : (
-        <Button onClick={onApply}>Откликнуться с моим профилем</Button>
+        <>
+          <ReferralInput value={referralCode} onChange={setReferralCode} />
+          <Button onClick={() => onApply(referralCode)}>Откликнуться с моим профилем</Button>
+        </>
       )}
       <p className="small muted">
         {profile.fullName} · {profile.contact}
@@ -1892,6 +1911,7 @@ function Points({ data, goal }: { data: Bootstrap; goal: string }) {
   );
 }
 function ledgerTitle(reason: string, data: Bootstrap) {
+  if (reason.startsWith("material:")) return "Тест по материалу";
   if (reason.startsWith("event-activity:")) {
     const id = reason.slice("event-activity:".length);
     for (const event of data.catalog.events) {
@@ -2040,6 +2060,8 @@ function Privacy() {
 function Admin() {
   const [adminToken, setAdminToken] = useState("");
   const [items, setItems] = useState<Application[] | null>(null);
+  const [referralRewards, setReferralRewards] = useState<{id:string;applicationId:string;status:"pending"|"issued"}[]>([]);
+  const [hireConfirm, setHireConfirm] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function adminRequest(path: string, method = "GET", body?: unknown) {
@@ -2061,8 +2083,9 @@ function Admin() {
     setBusy(true);
     setError("");
     try {
-      const r = await adminRequest("/applications");
+      const [r, rewards] = await Promise.all([adminRequest("/applications"), adminRequest("/referral-rewards")]);
       setItems(Array.isArray(r) ? r : r.applications);
+      setReferralRewards(rewards.rewards);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка запроса");
     } finally {
@@ -2080,6 +2103,18 @@ function Admin() {
     } finally {
       setBusy(false);
     }
+  }
+  async function referralAction(path:string, method:string, body?:unknown) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await adminRequest(path,method,body);
+      setHireConfirm(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка запроса");
+    } finally { setBusy(false); }
   }
   return (
     <main className="app-shell screen stack">
@@ -2120,17 +2155,42 @@ function Admin() {
               onClick={() => {
                 setItems(null);
                 setAdminToken("");
+                setReferralRewards([]);
+                setHireConfirm(null);
               }}
             >
               Выйти
             </button>
           </div>
           {items.length ? (
-            items.map((a) => (
+            items.map((a) => {
+              const reward = referralRewards.find((r) => r.applicationId === a.id);
+              return (
               <article className="card stack" key={a.id}>
                 <p className="eyebrow">
                   {a.offer} · № {a.id.slice(0, 8)}
                 </p>
+                {a.referral && <div className="notice referral-hr-badge"><strong>★ По рекомендации</strong><p>{a.referral.referrerName || "Практикант Очаково"} · {a.referral.code}</p></div>}
+                {a.referral && (reward ? (
+                  <div className="stack small">
+                    <p className="success">Трудоустройство подтверждено · {reward.status === "issued" ? "мерч выдан" : "мерч рекомендателю ожидает выдачи"}</p>
+                    {reward.status === "pending" && (
+                      <Button secondary disabled={busy} onClick={() => void referralAction(`/referral-rewards/${reward.id}`, "PATCH", {status:"issued"})}>
+                        Подтвердить выдачу мерча
+                      </Button>
+                    )}
+                  </div>
+                ) : hireConfirm === a.id ? (
+                  <div className="notice stack">
+                    <p>Кандидат действительно приступил к работе? Подтверждение закрепит право рекомендателя на мерч.</p>
+                    <Button disabled={busy} onClick={() => void referralAction(`/applications/${a.id}/hire`, "POST", {})}>
+                      Да, трудоустройство состоялось
+                    </Button>
+                    <Button secondary disabled={busy} onClick={() => setHireConfirm(null)}>Отмена</Button>
+                  </div>
+                ) : (
+                  <Button secondary disabled={busy} onClick={() => setHireConfirm(a.id)}>Подтвердить трудоустройство</Button>
+                ))}
                 <ProfileSummary profile={a.profile} />
                 <p className="small muted">Получен {date(a.created)}</p>
                 <label className="field">
@@ -2155,7 +2215,7 @@ function Admin() {
                   </select>
                 </label>
               </article>
-            ))
+            );})
           ) : (
             <Empty>Заявок пока нет.</Empty>
           )}

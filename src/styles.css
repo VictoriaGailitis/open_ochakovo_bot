@@ -1089,3 +1089,8 @@ textarea:focus {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* Five destinations stay readable on narrow mini-app viewports. */
+.bottom-nav { padding-left: 8px; padding-right: 8px; }
+.nav-item { font-size: 10px; overflow-wrap: anywhere; }
+.referral-hr-badge { border: 2px solid var(--red); background: var(--blush); }

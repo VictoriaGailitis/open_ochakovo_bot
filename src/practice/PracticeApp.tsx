@@ -218,19 +218,22 @@ export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
       setBusy(false);
     }
   };
-  const nav = mentorView
-    ? [
-        ["home", "⌂", "Практиканты"],
-        ["calendar", "▦", "Встречи"],
-        ["goals", "◎", "Цели"],
-        ["feedback", "♡", "Отзывы"],
-      ]
-    : [
-        ["home", "⌂", "Практика"],
-        ["calendar", "▦", "Календарь"],
-        ["goals", "◎", "Цели"],
-        ["team", "♧", "Команда"],
-      ];
+  const nav = [
+    ...(mentorView
+      ? [
+          ["home", "⌂", "Практиканты"],
+          ["calendar", "▦", "Встречи"],
+          ["goals", "◎", "Цели"],
+          ["feedback", "♡", "Отзывы"],
+        ]
+      : [
+          ["home", "⌂", "Практика"],
+          ["calendar", "▦", "Календарь"],
+          ["goals", "◎", "Цели"],
+          ["team", "♧", "Команда"],
+        ]),
+    ["community", "✦", "Вместе"],
+  ];
   const active = ["goal"].includes(screen)
     ? "goals"
     : ["meeting"].includes(screen)
@@ -283,7 +286,6 @@ export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
             ? "Эта практика не найдена или не назначена тебе."
             : "Когда администратор подтвердит выход и создаст практику, здесь появятся даты, наставник и твой план."}
         </Empty>
-
       </>
     );
   else {
@@ -360,7 +362,9 @@ export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
           Очаково: изнутри
         </a>
         <span className="tag">{mentorView ? "Наставник" : "Практикант"}</span>
-        <button className="p-logout" onClick={() => void onLogout()}>Выйти</button>
+        <button className="p-logout" onClick={() => void onLogout()}>
+          Выйти
+        </button>
       </header>
       <main ref={heading} tabIndex={-1} className="screen p-content stack">
         <a className="p-return" href="#/home">
@@ -372,7 +376,9 @@ export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
           </div>
         )}
         {p && mentorView && screen !== "home" && (
-          <p className="small muted">{p.studentName} · {p.title}</p>
+          <p className="small muted">
+            {p.studentName} · {p.title}
+          </p>
         )}
         {p && list.length > 1 && (
           <Field label={mentorView ? "Практикант" : "Период практики"}>
@@ -396,6 +402,16 @@ export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
             Результаты доступны для просмотра.
           </div>
         )}
+        {(screen === "home" || !p) && (
+          <Card
+            title="Сообщество Очаково"
+            sub="Материалы, события команды и награды за участие"
+            icon="✦"
+            onClick={() => {
+              location.hash = "/community";
+            }}
+          />
+        )}
         <section
           key={`${mentorView}:${p?.id ?? "empty"}:${screen}:${item ?? ""}`}
           className="stack"
@@ -412,7 +428,9 @@ export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
             key={key}
             className={`nav-item ${active === key || (key === "home" && !["calendar", "goals", "team", "feedback"].includes(active)) ? "active" : ""}`}
             aria-current={active === key ? "page" : undefined}
-            onClick={() => go(key)}
+            onClick={() =>
+              key === "community" ? (location.hash = "/community") : go(key)
+            }
           >
             <span aria-hidden="true">{icon}</span>
             <span>{label}</span>
@@ -1065,7 +1083,13 @@ function MeetingDetail(props: Props & { meeting?: Meeting }) {
     </>
   );
 }
-function MeetingForm({ p, meeting, run, busy, initialDate }: Props & {
+function MeetingForm({
+  p,
+  meeting,
+  run,
+  busy,
+  initialDate,
+}: Props & {
   meeting?: Meeting;
   initialDate?: string;
 }) {

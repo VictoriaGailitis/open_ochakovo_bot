@@ -1,0 +1,57 @@
+.referral-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.referral-card h2,
+.referral-card p {
+  margin: 0;
+}
+.referral-code-label,
+.referral-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.referral-code,
+.referral-field input {
+  border: 1px solid #e9cdd4;
+  border-radius: 12px;
+  background: #fff;
+  color: #17171c;
+  min-height: 48px;
+  width: 100%;
+  padding: 12px;
+  font: inherit;
+}
+.referral-code {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.referral-field label {
+  font-weight: 500;
+}
+.referral-field label span,
+.referral-field p,
+.referral-policy,
+.referral-stat {
+  font-size: 13px;
+  line-height: 19px;
+  color: #626262;
+}
+.referral-field p {
+  margin: 0;
+}
+.referral-field input[aria-invalid="true"] {
+  border-color: #d50032;
+}
+.referral-card .referral-error,
+.referral-field .referral-error {
+  color: #ab2328;
+}
+.referral-card input:focus-visible,
+.referral-field input:focus-visible {
+  outline: 3px solid #ab2328;
+  outline-offset: 2px;
+}

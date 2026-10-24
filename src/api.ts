@@ -4,6 +4,13 @@ import { syncDraftClock } from "./draftClock";
 import { localStore, sessionStore } from "./storage";
 
 let token = "";
+export type ApiClient = <T>(
+  path: string,
+  method?: string,
+  body?: unknown,
+) => Promise<T>;
+export type MediaLoader = (id: string) => Promise<Blob>;
+export type StaffRole = "intern" | "mentor" | "employee";
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -55,11 +62,15 @@ const STAFF_SESSION_KEY = "ochakovo:staff:session";
 export function clearStaffSession() {
   sessionStore.remove(STAFF_SESSION_KEY);
 }
-export async function staffApi<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+export async function staffApi<T>(
+  path: string,
+  method = "GET",
+  body?: unknown,
+): Promise<T> {
   const response = await fetch("/api" + path, {
     method,
     headers: {
-      ...(body === undefined ? {} : {"Content-Type": "application/json"}),
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       Authorization: "Bearer " + (sessionStore.get(STAFF_SESSION_KEY) ?? ""),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -67,16 +78,58 @@ export async function staffApi<T>(path: string, method = "GET", body?: unknown):
   });
   const result = await response.json().catch(() => null);
   if (!response.ok) {
-    if(response.status === 401 && path !== "/staff/login") { clearStaffSession(); location.hash = "/login"; }
-    throw new ApiError(result?.error ?? "Не удалось подключиться. Попробуй ещё раз.", response.status, result?.code);
+    if (response.status === 401 && path !== "/staff/login") {
+      clearStaffSession();
+      location.hash = "/login";
+    }
+    throw new ApiError(
+      result?.error?.message ??
+        result?.error ??
+        "Не удалось подключиться. Попробуй ещё раз.",
+      response.status,
+      result?.code,
+    );
   }
   return result as T;
 }
 export async function loginStaff(login: string, password: string) {
-  const result = await staffApi<{token:string;role:"intern"|"mentor"}>("/staff/login", "POST", {login,password});
-  sessionStore.set(STAFF_SESSION_KEY,result.token);
+  const result = await staffApi<{ token: string; role: StaffRole }>(
+    "/staff/login",
+    "POST",
+    { login, password },
+  );
+  sessionStore.set(STAFF_SESSION_KEY, result.token);
   return result.role;
 }
+async function loadMedia(
+  id: string,
+  credential: string,
+  staff: boolean,
+): Promise<Blob> {
+  if (!id.trim()) throw new Error("Файл не найден.");
+  // Media credentials follow the JSON API boundary: never put a token in a URL.
+  const response = await fetch("/api/media/" + encodeURIComponent(id), {
+    headers: { Authorization: "Bearer " + credential },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    if (staff && response.status === 401) {
+      clearStaffSession();
+      location.hash = "/login";
+    }
+    const result = await response.json().catch(() => null);
+    throw new ApiError(
+      result?.error?.message ?? result?.error ?? "Не удалось загрузить файл.",
+      response.status,
+      result?.code,
+    );
+  }
+  return response.blob();
+}
+export const loadStaffMedia: MediaLoader = (id) =>
+  loadMedia(id, sessionStore.get(STAFF_SESSION_KEY) ?? "", true);
+export const loadCandidateMedia: MediaLoader = (id) =>
+  loadMedia(id, token, false);
 export async function initialize(): Promise<{
   data: Bootstrap;
   mode: string;
