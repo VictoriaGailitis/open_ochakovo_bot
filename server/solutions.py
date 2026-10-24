@@ -1,5 +1,6 @@
-"""Server-owned validators for the five distinct educational game mechanics."""
+"""Server-owned validators for the educational game mechanics."""
 from collections import Counter, deque
+from .shift import assess as assess_shift
 
 
 def integer(value):
@@ -11,6 +12,7 @@ def validate(task, solution):
         return ['Решение должно быть объектом.']
     puzzle, game = task['puzzle'], task['game']
     try:
+        if game=='shift': return assess_shift(task,solution)
         return globals()['validate_' + game](puzzle, solution)
     except (KeyError, TypeError, ValueError, IndexError):
         return ['Некорректный формат решения. Проверьте все элементы.']

@@ -23,6 +23,12 @@ PROFILE={'fullName':'Тестовый кандидат','contact':'test@example.
 
 def solution(task):
     p=task['puzzle'];game=task['game']
+    if game=='shift':
+        return {'observedChange':'packaging_restriction' if task['id']=='shift-1' else 'upstream_shortage',
+                'explanation':'packaging_setting' if task['id']=='shift-1' else 'feed_interruption',
+                'evidence':['metric-packaging','history-queue','journal-mode'] if task['id']=='shift-1' else ['metric-feed','history-queue','journal-feed'],
+                'nextStep':'report_coordinate_packaging' if task['id']=='shift-1' else 'report_coordinate_supply',
+                'responsible':'packaging_specialist' if task['id']=='shift-1' else 'upstream_coordinator'}
     if game=='signal':
         cond={'color':'red','mark':'marked','combined':'red_marked'}[p['rule']]
         return {'rules':[{'condition':cond,'output':'left'},{'condition':'always','output':'right'}]}
@@ -65,7 +71,11 @@ class APITest(unittest.TestCase):
         return cm.exception
     def complete(self,task_id='signal-1',headers=None):
         task=next(x for x in CATALOG['tasks'] if x['id']==task_id)
-        return self.call('POST',f'/api/tasks/{task_id}/complete',{'solution':solution(task)},headers)
+        attempt=solution(task)
+        if task['game']=='shift':
+            observations=[{'factId':fact_id,'note':'Учебная заметка'} for fact_id in attempt['evidence']]
+            self.call('PUT',f'/api/tasks/{task_id}/draft',{'draft':{'observations':observations}},headers)
+        return self.call('POST',f'/api/tasks/{task_id}/complete',{'solution':attempt},headers)
 
     def test_all_levels_have_valid_solutions(self):
         for task in CATALOG['tasks']:
@@ -75,11 +85,11 @@ class APITest(unittest.TestCase):
                 self.assertTrue(result['correct'])
                 self.assertEqual(result['pointsAwarded'],task['points'])
         boot=self.call('GET','/api/bootstrap')
-        self.assertEqual(len(boot['progress']),13)
+        self.assertEqual(len(boot['progress']),len(CATALOG['tasks']))
         self.assertEqual(boot['balance'],sum(x['points'] for x in CATALOG['tasks']))
         self.assertTrue(all(x['completed'] for x in boot['progress']))
         self.assertTrue(boot['routeCompleted'])
-        self.assertEqual(boot['routeProgress']['completed'],5)
+        self.assertEqual(boot['routeProgress']['completed'],6)
 
     def test_profile_and_game_gate(self):
         headers=self.login('new',False)
@@ -170,7 +180,7 @@ class APITest(unittest.TestCase):
         self.assertEqual(self.call('GET','/api/ledger')['balance'],0)
 
     def test_signal_checks_unseen_inputs(self):
-        task=copy.deepcopy(CATALOG['tasks'][0]);task['puzzle']['stream']=[{'color':'red','marked':True}]
+        task=copy.deepcopy(next(t for t in CATALOG['tasks'] if t['id']=='signal-1'));task['puzzle']['stream']=[{'color':'red','marked':True}]
         self.assertTrue(validate(task,{'rules':[{'condition':'always','output':'left'}]}))
 
     def test_movement_rejects_duplicates_and_detached_gear(self):

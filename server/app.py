@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, unquote
 from .solutions import validate
+from .shift import assess as assess_shift, normalize_draft as normalize_shift_draft, completion_details as shift_completion_details
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = json.loads((ROOT / 'server/catalog.json').read_text())
@@ -120,7 +121,7 @@ class Store:
     def bootstrap(self, db, uid):
         profile=decode(db.execute('SELECT profile FROM users WHERE id=?',(uid,)).fetchone()[0])
         rows={table:self.rows(db,table,uid) for table in ('progress','applications','registrations','exchanges','ledger')}
-        task_ids=['signal-1','movement-1','lab-1','delivery-1','history-1']
+        task_ids=['shift-1','signal-1','movement-1','lab-1','delivery-1','history-1']
         completed_ids=[task_id for task_id in task_ids if any(p['task']==task_id and p['completed'] for p in rows['progress'])]
         route_progress={'completed':len(completed_ids),'total':len(task_ids),'taskIds':task_ids,'completedTaskIds':completed_ids}
         return dict(user={'id':uid},profile=profile,balance=self.balance(db,uid),catalog=self.catalog(db),
@@ -274,6 +275,10 @@ class API:
                 if method=='PUT' and action=='draft':
                     draft=body.get('draft')
                     if not isinstance(draft,dict) or len(json.dumps(draft))>65536: raise APIError(400,'Некорректный черновик.')
+                    if task['game']=='shift':
+                        try: draft=normalize_shift_draft(task,draft)
+                        except ValueError as error: raise APIError(400,str(error))
+                        if len(json.dumps(draft))>65536: raise APIError(400,'Черновик слишком большой.')
                     existing=db.execute('SELECT draft,draft_revision FROM progress WHERE user_id=? AND task=?',(uid,task['id'])).fetchone()
                     stored_revision=existing['draft_revision'] if existing else 0
                     revision=body.get('revision')
@@ -288,14 +293,20 @@ class API:
                     db.execute("INSERT INTO progress(user_id,task,draft,draft_revision) VALUES(?,?,?,?) ON CONFLICT(user_id,task) DO UPDATE SET draft=excluded.draft,draft_revision=excluded.draft_revision WHERE excluded.draft_revision>=progress.draft_revision",(uid,task['id'],json.dumps(draft,ensure_ascii=False),revision))
                     return {'saved':True,'revision':revision,'progress':self.store.rows(db,'progress',uid)}
                 if method=='POST' and action=='complete':
-                    errors=validate(task,body.get('solution'))
+                    if task['game']=='shift':
+                        saved=db.execute('SELECT draft FROM progress WHERE user_id=? AND task=?',(uid,task['id'])).fetchone()
+                        saved_draft=decode(saved['draft'],{}) if saved else {}
+                        observation_ids=[item.get('factId') for item in saved_draft.get('observations',[]) if isinstance(item,dict)]
+                        errors=assess_shift(task,body.get('solution'),observation_ids)
+                    else:
+                        errors=validate(task,body.get('solution'))
                     if errors: return {'correct':False,'errors':errors,'pointsAwarded':0,'alreadyCompleted':False}
                     previous=db.execute('SELECT completed FROM progress WHERE user_id=? AND task=?',(uid,task['id'])).fetchone()
                     completed=previous[0] if previous and previous[0] else now()
                     db.execute("INSERT INTO progress(user_id,task,draft,completed) VALUES(?,?,?,?) ON CONFLICT(user_id,task) DO UPDATE SET completed=COALESCE(progress.completed,excluded.completed)",(uid,task['id'],json.dumps(body['solution'],ensure_ascii=False),completed))
                     awarded=db.execute('INSERT OR IGNORE INTO ledger VALUES(?,?,?,?,?)',(ident(),uid,'task:'+task['id'],task['points'],now())).rowcount>0
                     db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,'task_completed',now()))
-                    return {'correct':True,'pointsAwarded':task['points'] if awarded else 0,'alreadyCompleted':not awarded,'explanation':task['explanation'],'balance':self.store.balance(db,uid),'progress':self.store.rows(db,'progress',uid)}
+                    return {'correct':True,'pointsAwarded':task['points'] if awarded else 0,'alreadyCompleted':not awarded,'balance':self.store.balance(db,uid),'progress':self.store.rows(db,'progress',uid),**(shift_completion_details(task) if task['game']=='shift' else {'explanation':task['explanation']})}
             if method=='POST' and path=='/api/applications':
                 offer=self.item('offers',body.get('offerId'))
                 application_id=ident()
