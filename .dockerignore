@@ -1,0 +1,12 @@
+node_modules
+.data
+.git
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+playwright-report
+test-results
+artifacts
+docs
