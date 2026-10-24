@@ -57,6 +57,3 @@ export function WelcomeHistory({ className = "" }: { className?: string }) {
   );
 }
 
-export function RewardArt({ className = "" }: { className?: string }) {
-  return <span className={`reward-art ${className}`} aria-hidden="true" />;
-}

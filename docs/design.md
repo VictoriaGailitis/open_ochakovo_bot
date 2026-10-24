@@ -2,7 +2,7 @@
 
 The interface follows the supplied Figma screen designs: welcome, onboarding, interests, home, task catalogue, careers, opportunity details, points, events, profile, history quiz and rewards. The shift game remains intentionally unavailable while its screens are being designed.
 
-The application uses React with TypeScript and plain CSS. Mobile frames have a 390 px maximum width and 20 px gutters, leaving a 350 px content area. On smaller screens the interface adapts to the viewport. Common typography uses Inter with system fallbacks: caption 11/15, label 13/18, body 15/21, title 18/24, heading 24/30 and display 32/38. The primary palette is red `#D50032`, burgundy `#AB2328`, paper `#FFF8F2`, blush `#FCE8EE`, line `#E9CDD4`, ink `#17171C` and muted `#626262`.
+The application uses React with TypeScript and plain CSS. Mobile frames have a 390 px maximum width and 20 px gutters, leaving a 350 px content area. On smaller screens the interface adapts to the viewport. Common typography uses locally bundled Inter Variable with system fallbacks: caption 11/15, label 13/18, body 15/21, title 18/24, heading 24/30 and display 32/38. The primary palette is red `#D50032`, burgundy `#AB2328`, paper `#FFF8F2`, blush `#FCE8EE`, line `#E9CDD4`, ink `#17171C` and muted `#626262`.
 
 `src/styles.css` owns the application tokens, layout, shared controls, focus states, mobile navigation and reduced-motion behavior. `src/components/Art.tsx` reuses the exact local welcome artwork. The mascot source is a transparent four-pose raster, rendered at 432 × 144 px and clipped to one 108 × 144 px pose. The welcome history uses the three original vector assets at their intrinsic sizes. Game artwork is stored separately in `public/assets/games/`.
 
