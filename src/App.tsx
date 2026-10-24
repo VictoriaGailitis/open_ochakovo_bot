@@ -925,8 +925,8 @@ export default function App() {
         {[
           ["home", "⌂", "Для тебя"],
           ["tasks", "◇", "Задания"],
-          ["career", "↗", "Карьера"],
-          ["events", "□", "События"],
+          ["career", "▣", "Карьера"],
+          ["events", "▦", "События"],
         ].map(([key, icon, title]) => (
           <button
             key={key}

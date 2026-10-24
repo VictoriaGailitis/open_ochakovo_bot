@@ -33,7 +33,11 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const root: ReactDOM.Root =
+  import.meta.hot?.data.root ??
+  ReactDOM.createRoot(document.getElementById("root")!);
+if (import.meta.hot) import.meta.hot.data.root = root;
+root.render(
   <ErrorBoundary>
     <App />
   </ErrorBoundary>,
