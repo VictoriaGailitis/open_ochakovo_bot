@@ -3,6 +3,7 @@ import copy
 import hashlib
 import hmac
 import json
+import sqlite3
 import tempfile
 import threading
 import time
@@ -101,6 +102,59 @@ class APITest(unittest.TestCase):
         self.assertEqual(restored['progress'][0]['draft'],draft)
         other=self.login('other')
         self.assertEqual(self.call('GET','/api/bootstrap',headers=other)['progress'],[])
+
+    def test_stale_draft_revision_cannot_overwrite_newer_state(self):
+        newer={'gears':[{'x':1,'y':1},{'x':2,'y':1}]}
+        older={'gears':[{'x':1,'y':1}]}
+        saved=self.call('PUT','/api/tasks/movement-1/draft',{'draft':newer,'revision':200})
+        self.assertTrue(saved['saved'])
+        stale=self.call('PUT','/api/tasks/movement-1/draft',{'draft':older,'revision':100})
+        self.assertFalse(stale['saved'])
+        self.assertEqual(stale['reason'],'stale')
+        self.assertEqual(stale['draft'],newer)
+        self.assertEqual(stale['revision'],200)
+        progress=self.call('GET','/api/bootstrap')['progress'][0]
+        self.assertEqual(progress['draft'],newer)
+        self.assertEqual(progress['revision'],200)
+        # Concurrent out-of-order autosaves must converge to the highest revision.
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(lambda revision:self.call('PUT','/api/tasks/movement-1/draft',{'draft':{'step':revision},'revision':revision}),[204,201,209,202,205,208,203,207,206]))
+        progress=self.call('GET','/api/bootstrap')['progress'][0]
+        self.assertEqual(progress['draft'],{'step':209})
+        self.assertEqual(progress['revision'],209)
+        # Completing a task and later saving cannot reset completion or its revision.
+        self.complete('movement-1')
+        self.assertEqual(self.call('GET','/api/bootstrap')['progress'][0]['revision'],209)
+        result=self.call('PUT','/api/tasks/movement-1/draft',{'draft':newer})
+        self.assertGreater(result['revision'],209)
+        self.assertTrue(result['progress'][0]['completed'])
+        for revision in (-1,True,1.5,'300',None,9007199254740992):
+            self.assert_error(400,lambda:self.call('PUT','/api/tasks/movement-1/draft',{'draft':older,'revision':revision}))
+
+    def test_legacy_progress_schema_is_migrated_without_data_loss(self):
+        legacy_path=Path(self.temp.name)/'legacy.db'
+        with closing(sqlite3.connect(legacy_path)) as db:
+            db.executescript("""
+                CREATE TABLE users (id TEXT PRIMARY KEY, profile TEXT);
+                CREATE TABLE progress (user_id TEXT REFERENCES users(id), task TEXT, draft TEXT DEFAULT '{}', completed TEXT, PRIMARY KEY(user_id,task));
+                INSERT INTO users VALUES ('demo:legacy',NULL);
+                INSERT INTO progress VALUES ('demo:legacy','signal-1','{"rules":[]}',NULL);
+            """)
+            db.commit()
+        migrated=Store(legacy_path)
+        with closing(migrated.connect()) as db:
+            row=dict(db.execute('SELECT * FROM progress').fetchone())
+            self.assertEqual(row['draft_revision'],0)
+            self.assertEqual(json.loads(row['draft']),{'rules':[]})
+            self.assertIsNone(row['completed'])
+            self.assertEqual(Store.rows(db,'progress','demo:legacy')[0]['revision'],0)
+        # Migration is idempotent and a subsequently saved revision survives reopening.
+        Store(legacy_path)
+        with migrated.transaction() as db:
+            db.execute('UPDATE progress SET draft_revision=123')
+        reopened=Store(legacy_path)
+        with closing(reopened.connect()) as db:
+            self.assertEqual(db.execute('SELECT draft_revision FROM progress').fetchone()[0],123)
 
     def test_invalid_games_do_not_award(self):
         invalid={

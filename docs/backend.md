@@ -41,7 +41,7 @@ VK_APP_ID=<application-id> VK_APP_SECRET=<secure-key> ADMIN_TOKEN=<private-HR-to
 | GET | `/api/bootstrap` | `{user:{id},profile,balance,catalog,progress,ledger,applications,registrations,exchanges}` |
 | GET | `/api/profile` | `{profile}` |
 | PUT | `/api/profile` | Профиль → `{profile}` |
-| PUT | `/api/tasks/:id/draft` | `{draft:object}` → `{saved,progress}` |
+| PUT | `/api/tasks/:id/draft` | `{draft:object,revision?:integer}` → `{saved,revision,progress?}` |
 | POST | `/api/tasks/:id/complete` | `{solution:object}` → `{correct,pointsAwarded,alreadyCompleted,explanation?,errors?,balance?,progress?}` |
 | GET | `/api/ledger` | `{balance,ledger}` |
 | POST | `/api/applications` | `{offerId}` → `{application,alreadyApplied,demo,message}` |
@@ -52,7 +52,7 @@ VK_APP_ID=<application-id> VK_APP_SECRET=<secure-key> ADMIN_TOKEN=<private-HR-to
 
 Профиль: `{fullName,contact,birthDate:'YYYY-MM-DD',direction,availability,education,schedule?,consent:true,futureContact?:false}`. Контакт — телефон или email. Все основные текстовые поля обязательны. Для этого прототипа принимается возраст от 18 до 100 лет; он не используется для автоматического решения о найме. При сохранении сервер добавляет `consentedAt`. Согласие на будущие предложения независимо от обработки анкеты. Для игр, откликов, событий и наград нужен сохранённый профиль; баланс и завершения не являются условиями отклика.
 
-`progress`: `{task,draft,completed:string|null}`. `ledger`: `{id,reason,delta,created}`. Отклик содержит snapshot профиля на момент отправки. Для совместимости отклики имеют и `offer`, и `offerId`; записи `event`/`eventId`, обмены `reward`/`rewardId`. Один пользователь может отправить один отклик на предложение, иметь одну активную запись на событие и обменять каждую награду один раз. Отменённую запись можно восстановить при наличии мест. Время события — Москва (UTC+3).
+`progress`: `{task,draft,completed:string|null,revision:number}`. Черновики имеют монотонную версию: клиент передаёт `revision = max(Date.now(), lastRevision + 1)` и начинает счётчик с максимума полученных `progress[].revision`. Запрос с меньшей версией не меняет базу и возвращает HTTP200 `{saved:false,reason:"stale",draft,revision}` с текущим серверным состоянием. Это предотвращает затирание свежего черновика поздним autosave/pagehide-запросом. Старым клиентам без revision сервер присваивает `max(now_ms,stored+1)`; завершение задания версию черновика не сбрасывает. Существующая схема обновляется добавлением draft_revision с начальным значением0 без удаления данных. `ledger`: `{id,reason,delta,created}`. Отклик содержит snapshot профиля на момент отправки. Для совместимости отклики имеют и `offer`, и `offerId`; записи `event`/`eventId`, обмены `reward`/`rewardId`. Один пользователь может отправить один отклик на предложение, иметь одну активную запись на событие и обменять каждую награду один раз. Отменённую запись можно восстановить при наличии мест. Время события — Москва (UTC+3).
 
 За каждое содержательно завершённое задание/уровень баллы начисляются один раз. Перепрохождение и обновление черновика завершение не сбрасывают. За отклики, профиль и аналитику баллы не начисляются. Обмен и отрицательная запись ledger совершаются в одной транзакции, после проверки баланса и остатка награды. Нет клиентского API для произвольного начисления.
 
@@ -82,7 +82,7 @@ VK_APP_ID=<application-id> VK_APP_SECRET=<secure-key> ADMIN_TOKEN=<private-HR-to
 python3 -m unittest discover -s server/tests -v
 ```
 
-Тесты используют отдельную временную базу, не меняют пользовательскую `.data`. Проверяются все 13 решаемых уровней, неверные решения, сохранение после нового подключения, изоляция пользователей, профиль и согласие, реальный HTTP-путь отклика, HR-статус, VK HMAC/подмена/срок/ID, запрещённый dev-вход, параллельное повторное завершение, обмен и конкурентная запись сверх лимита.
+Тесты используют отдельную временную базу, не меняют пользовательскую `.data`. Проверяются все 13 решаемых уровней, неверные решения, сохранение после нового подключения, изоляция пользователей, профиль и согласие, реальный HTTP-путь отклика, HR-статус, VK HMAC/подмена/срок/ID, запрещённый dev-вход, параллельное повторное завершение, обмен и конкурентная запись сверх лимита, конкурентные черновики с переставленными версиями и миграция старой схемы без потери прогресса.
 
 ## Сборка и развёртывание
 

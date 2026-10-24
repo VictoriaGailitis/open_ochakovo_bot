@@ -52,7 +52,7 @@ class Store:
             PRAGMA journal_mode=WAL;
             CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, profile TEXT);
             CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), expires REAL);
-            CREATE TABLE IF NOT EXISTS progress (user_id TEXT REFERENCES users(id), task TEXT, draft TEXT DEFAULT '{}', completed TEXT, PRIMARY KEY(user_id,task));
+            CREATE TABLE IF NOT EXISTS progress (user_id TEXT REFERENCES users(id), task TEXT, draft TEXT DEFAULT '{}', completed TEXT, draft_revision INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user_id,task));
             CREATE TABLE IF NOT EXISTS ledger (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), reason TEXT, delta INTEGER, created TEXT, UNIQUE(user_id,reason));
             CREATE TABLE IF NOT EXISTS applications (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), offer TEXT, profile TEXT, status TEXT, created TEXT, UNIQUE(user_id,offer));
             CREATE TABLE IF NOT EXISTS registrations (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), event TEXT, status TEXT, created TEXT, UNIQUE(user_id,event));
@@ -63,6 +63,11 @@ class Store:
             CREATE INDEX IF NOT EXISTS idx_exchanges_reward ON exchanges(reward);
             CREATE INDEX IF NOT EXISTS idx_ledger_user ON ledger(user_id);
             ''')
+            # Upgrade existing installations in place; do not rebuild or drop progress.
+            columns={row['name'] for row in db.execute('PRAGMA table_info(progress)')}
+            if 'draft_revision' not in columns:
+                db.execute('ALTER TABLE progress ADD COLUMN draft_revision INTEGER NOT NULL DEFAULT 0')
+            db.commit()
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=15)
@@ -103,7 +108,9 @@ class Store:
         result=[dict(row) for row in db.execute(f'SELECT * FROM {table} WHERE user_id=?', (user_id,))]
         for row in result:
             row.pop('user_id',None)
-            if table=='progress': row['draft']=decode(row['draft'],{})
+            if table=='progress':
+                row['draft']=decode(row['draft'],{})
+                row['revision']=row.pop('draft_revision')
             if table=='applications': row['profile']=decode(row['profile'],{})
             if 'offer' in row: row['offerId']=row['offer']
             if 'event' in row: row['eventId']=row['event']
@@ -267,8 +274,19 @@ class API:
                 if method=='PUT' and action=='draft':
                     draft=body.get('draft')
                     if not isinstance(draft,dict) or len(json.dumps(draft))>65536: raise APIError(400,'Некорректный черновик.')
-                    db.execute("INSERT INTO progress(user_id,task,draft) VALUES(?,?,?) ON CONFLICT(user_id,task) DO UPDATE SET draft=excluded.draft",(uid,task['id'],json.dumps(draft,ensure_ascii=False)))
-                    return {'saved':True,'progress':self.store.rows(db,'progress',uid)}
+                    existing=db.execute('SELECT draft,draft_revision FROM progress WHERE user_id=? AND task=?',(uid,task['id'])).fetchone()
+                    stored_revision=existing['draft_revision'] if existing else 0
+                    revision=body.get('revision')
+                    if 'revision' in body:
+                        if type(revision) is not int or not 0<=revision<=9007199254740991:
+                            raise APIError(400,'Некорректная версия черновика.')
+                    else:
+                        # Legacy clients remain supported; new clients send a monotonic millisecond revision.
+                        revision=max(time.time_ns()//1000000,stored_revision+1)
+                    if revision<stored_revision:
+                        return {'saved':False,'reason':'stale','draft':decode(existing['draft'],{}),'revision':stored_revision}
+                    db.execute("INSERT INTO progress(user_id,task,draft,draft_revision) VALUES(?,?,?,?) ON CONFLICT(user_id,task) DO UPDATE SET draft=excluded.draft,draft_revision=excluded.draft_revision WHERE excluded.draft_revision>=progress.draft_revision",(uid,task['id'],json.dumps(draft,ensure_ascii=False),revision))
+                    return {'saved':True,'revision':revision,'progress':self.store.rows(db,'progress',uid)}
                 if method=='POST' and action=='complete':
                     errors=validate(task,body.get('solution'))
                     if errors: return {'correct':False,'errors':errors,'pointsAwarded':0,'alreadyCompleted':False}
