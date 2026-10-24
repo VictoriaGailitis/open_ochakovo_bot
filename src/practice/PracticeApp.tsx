@@ -785,8 +785,8 @@ function GoalDetail(props: Props & { goal?: Goal }) {
         <>
           {mentorView && goal.status !== "approved" && (
             <GoalForm {...props} editGoal={goal} />
-          )}{" "}
-          {mentorView && (
+          )}
+          {mentorView && goal.status !== "approved" && (
             <Field label="Комментарий к результату">
               <textarea
                 maxLength={2000}
