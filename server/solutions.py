@@ -1,18 +1,20 @@
 """Server-owned validators for the educational game mechanics."""
 from collections import Counter, deque
 from .shift import assess as assess_shift
+from .level_rules import resolve_level_rule
 
 
 def integer(value):
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def validate(task, solution):
+def validate(task, solution, registry=None):
     if not isinstance(solution, dict):
         return ['Решение должно быть объектом.']
     puzzle, game = task['puzzle'], task['game']
     try:
-        if game=='shift': return assess_shift(task,solution)
+        if game=='shift': return assess_shift(task,solution,registry=registry)
+        if game=='history': return validate_history(puzzle,solution,resolve_level_rule(task,registry))
         return globals()['validate_' + game](puzzle, solution)
     except (KeyError, TypeError, ValueError, IndexError):
         return ['Некорректный формат решения. Проверьте все элементы.']
@@ -135,9 +137,11 @@ def validate_delivery(p,s):
     return []
 
 
-def validate_history(p,s):
+def validate_history(p,s,rule=None):
+    if not rule:
+        return ['Правило проверки задания недоступно. Попробуйте позже.']
     answers=s.get('answers')
-    expected={'founded':'1978','event':'olympics','brand':'secret'}
+    expected=rule['answers']
     if not isinstance(answers,dict) or set(answers)!=set(expected):
         return ['Ответьте на все вопросы.']
     if answers!=expected:

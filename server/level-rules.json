@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "levels": {
+    "history-1": "history-company-v1",
+    "shift-1": "shift-packaging-v1",
+    "shift-2": "shift-supply-v1"
+  },
+  "rules": {
+    "history-company-v1": {
+      "game": "history",
+      "answers": {
+        "founded": "1978",
+        "event": "olympics",
+        "brand": "secret"
+      }
+    },
+    "shift-packaging-v1": {
+      "observedChange": "packaging_restriction",
+      "explanation": "packaging_setting",
+      "nextStep": "report_coordinate_packaging",
+      "responsible": "packaging_specialist",
+      "localizationPaths": [
+        [
+          [
+            "scheme-flow"
+          ]
+        ],
+        [
+          [
+            "history-packaging",
+            "metric-packaging"
+          ],
+          [
+            "history-queue",
+            "metric-queue"
+          ]
+        ],
+        [
+          [
+            "history-packaging",
+            "metric-packaging"
+          ],
+          [
+            "history-feed",
+            "metric-feed"
+          ]
+        ]
+      ],
+      "causeFacts": [
+        "check-settings",
+        "journal-mode"
+      ],
+      "contradictoryFacts": [
+        "journal-hypothesis"
+      ],
+      "explanationText": "Упаковочный участок снизил темп до 42 упак./мин после изменения настройки в 14:06:40. Подача осталась 60 упак./мин, а очередь перед упаковкой выросла с 4 до 18. Настройка и наблюдаемый поток согласуются; проверка не подтверждает пропуски выходного датчика. Подтверждённые данные нужно передать ответственному специалисту и согласовать темп участков по установленному порядку. Самостоятельное изменение настройки не является действием игрока.",
+      "outcome": {
+        "summary": "Учебная модель: команда получила обоснованное сообщение и согласовала работу участков.",
+        "before": "Упаковка и выход — 42 упак./мин при подаче 60; очередь — 18 упаковок.",
+        "after": "После проверки и согласования уполномоченными специалистами модель показывает согласованный темп подачи и упаковки. Очередь больше не растёт; игрок не выполняет ремонт или самостоятельный перезапуск."
+      },
+      "game": "shift",
+      "assessment": {
+        "localization": 10,
+        "cause": 10,
+        "nextStep": 10
+      }
+    },
+    "shift-supply-v1": {
+      "observedChange": "upstream_shortage",
+      "explanation": "feed_interruption",
+      "nextStep": "report_coordinate_supply",
+      "responsible": "upstream_coordinator",
+      "localizationPaths": [
+        [
+          [
+            "scheme-flow"
+          ]
+        ],
+        [
+          [
+            "history-feed",
+            "metric-feed"
+          ],
+          [
+            "history-queue",
+            "metric-queue"
+          ]
+        ],
+        [
+          [
+            "history-feed",
+            "metric-feed"
+          ],
+          [
+            "history-capping",
+            "history-packaging",
+            "metric-capping",
+            "metric-packaging"
+          ]
+        ]
+      ],
+      "causeFacts": [
+        "check-feed",
+        "journal-feed"
+      ],
+      "contradictoryFacts": [
+        "journal-hypothesis"
+      ],
+      "explanationText": "В этом раунде первым сократился входной поток с предыдущего участка: с 60 до 42 упак./мин. Очередь перед упаковкой иссякла; укупорка и упаковка следуют доступной подаче. Журнал и проверка подтверждают перерыв подачи, а настройка упаковки остаётся 60 упак./мин. Повторение решения прошлого раунда не устранит причину. Нужно передать данные мастеру и ответственному за подачу и согласовать восстановление снабжения.",
+      "outcome": {
+        "summary": "Учебная модель: команда получила сообщение о подаче с предыдущего участка.",
+        "before": "На входе, укупорке и упаковке — 42 упак./мин; очередь перед упаковкой — 0.",
+        "after": "После согласования снабжения мастер и ответственный за подачу восстанавливают согласованный поток в учебной модели. Менять исправную настройку упаковки игроку не требуется."
+      },
+      "game": "shift",
+      "assessment": {
+        "localization": 10,
+        "cause": 10,
+        "nextStep": 10
+      }
+    }
+  }
+}
