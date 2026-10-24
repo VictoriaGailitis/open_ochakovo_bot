@@ -1,4 +1,4 @@
-"""Password sign-in for manually provisioned practice accounts. No registration endpoint."""
+"""Password sign-in for provisioned staff accounts. No registration endpoint."""
 import hashlib
 import hmac
 import re
@@ -11,7 +11,7 @@ ITERATIONS = 600_000
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS staff_credentials (
  user_id TEXT PRIMARY KEY REFERENCES users(id), login TEXT NOT NULL UNIQUE,
- password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('intern','mentor')),
+ password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('intern','mentor','employee')),
  active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))
 );
 CREATE TABLE IF NOT EXISTS staff_login_attempts (
@@ -22,6 +22,26 @@ CREATE TABLE IF NOT EXISTS staff_login_attempts (
 
 def migrate(db):
     db.executescript(SCHEMA)
+    definition = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='staff_credentials'").fetchone()[0]
+    if "'employee'" in definition:
+        return
+    # SQLite cannot widen an existing CHECK with ALTER COLUMN. Rebuild this one
+    # credentials table transactionally; user IDs and password hashes stay exact.
+    db.execute('SAVEPOINT staff_roles')
+    try:
+        db.execute('''CREATE TABLE staff_credentials_migrating (
+            user_id TEXT PRIMARY KEY REFERENCES users(id), login TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('intern','mentor','employee')),
+            active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)))''')
+        db.execute('''INSERT INTO staff_credentials_migrating(user_id,login,password_hash,role,active)
+                      SELECT user_id,login,password_hash,role,active FROM staff_credentials''')
+        db.execute('DROP TABLE staff_credentials')
+        db.execute('ALTER TABLE staff_credentials_migrating RENAME TO staff_credentials')
+        db.execute('RELEASE SAVEPOINT staff_roles')
+    except Exception:
+        db.execute('ROLLBACK TO SAVEPOINT staff_roles')
+        db.execute('RELEASE SAVEPOINT staff_roles')
+        raise
 
 
 def password_hash(password):
@@ -46,8 +66,8 @@ def verify(password, encoded):
 def provision_account(db, *, user_id, login, password, role):
     """Internal provisioning boundary for admin code/CLI, never a public HTTP endpoint."""
     login = login.strip().casefold() if isinstance(login, str) else ''
-    if not user_id.startswith('staff:') or role not in ('intern', 'mentor'):
-        raise ValueError('Нужны отдельный staff-аккаунт и роль intern или mentor.')
+    if not isinstance(user_id, str) or not user_id.startswith('staff:') or role not in ('intern', 'mentor', 'employee'):
+        raise ValueError('Нужны отдельный staff-аккаунт и роль intern, mentor или employee.')
     if not re.fullmatch(r'[a-z0-9][a-z0-9@._+-]{2,119}', login):
         raise ValueError('Некорректный логин.')
     # Do not silently change or reset accounts on a repeated provisioning call.

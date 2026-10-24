@@ -19,6 +19,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, unquote
 from .solutions import validate
 from .shift import assess as assess_shift, normalize_draft as normalize_shift_draft, completion_details as shift_completion_details
 from .errors import APIError
+from . import community, learning, media, referrals
 from .practice import Practice, migrate as migrate_practice
 from .staff_auth import migrate as migrate_staff, authenticate as staff_authenticate, require_staff
 
@@ -86,15 +87,21 @@ class Store:
                 db.execute('ALTER TABLE progress ADD COLUMN draft_revision INTEGER NOT NULL DEFAULT 0')
             migrate_practice(db)
             migrate_staff(db)
+            community.migrate(db,CATALOG)
+            learning.migrate(db)
+            media.migrate(db)
+            referrals.migrate(db)
             # Seeds contain definitions only. Tokens live in the ignored database and
             # existing activity data and deactivations survive every application restart.
             db.commit()
             db.execute('BEGIN IMMEDIATE')
+            learning.seed(db)
             for event in CATALOG['events']:
                 for activity in event.get('activities',[]):
                     if not db.execute('SELECT 1 FROM event_activities WHERE id=?',(activity['id'],)).fetchone():
                         db.execute('INSERT INTO event_activities(id,event_id,title,description,points,active,qr_token) VALUES(?,?,?,?,?,?,?)',
                                    (activity['id'],event['id'],activity['title'],activity['description'],activity['points'],int(activity.get('active',True)),secrets.token_urlsafe(32)))
+            community.seed_activities(db)
             db.commit()
 
     def connect(self):
@@ -132,8 +139,9 @@ class Store:
                 for row in db.execute('SELECT c.activity_id,a.event_id,c.completed_at,c.awarded_points FROM activity_completions c JOIN event_activities a ON a.id=c.activity_id WHERE c.user_id=? ORDER BY c.completed_at,c.activity_id',(uid,))]
 
     @staticmethod
-    def catalog(db):
+    def catalog(db, uid=None):
         catalog = copy.deepcopy(CATALOG)
+        catalog['events']=community.events(db,community.is_staff(db,uid))
         for event in catalog['events']:
             count = db.execute("SELECT COUNT(*) FROM registrations WHERE event=? AND status='registered'", (event['id'],)).fetchone()[0]
             event['remaining'] = max(0,event['capacity']-count)
@@ -151,7 +159,9 @@ class Store:
             if table=='progress':
                 row['draft']=decode(row['draft'],{})
                 row['revision']=row.pop('draft_revision')
-            if table=='applications': row['profile']=decode(row['profile'],{})
+            if table=='applications':
+                row['profile']=decode(row['profile'],{})
+                row['referral']=referrals.referral_for_application(db,row['id'])
             if 'offer' in row: row['offerId']=row['offer']
             if 'event' in row: row['eventId']=row['event']
             if 'reward' in row: row['rewardId']=row['reward']
@@ -163,7 +173,7 @@ class Store:
         task_ids=['shift-1','signal-1','movement-1','lab-1','delivery-1','history-1']
         completed_ids=[task_id for task_id in task_ids if any(p['task']==task_id and p['completed'] for p in rows['progress'])]
         route_progress={'completed':len(completed_ids),'total':len(task_ids),'taskIds':task_ids,'completedTaskIds':completed_ids}
-        return dict(user={'id':uid},profile=profile,balance=self.balance(db,uid),catalog=self.catalog(db),
+        return dict(user={'id':uid},profile=profile,balance=self.balance(db,uid),catalog=self.catalog(db,uid),
                     routeCompleted=len(completed_ids)==len(task_ids),routeProgress=route_progress,activityCompletions=self.activity_completions(db,uid),**rows)
 
 
@@ -291,8 +301,8 @@ class API:
         if not match: raise APIError(400,'Этот QR-код не относится к активности приложения.','qr_invalid')
         row=db.execute('SELECT * FROM event_activities WHERE qr_token=?',(match[1],)).fetchone()
         if not row: raise APIError(404,'Активность по этому QR-коду не найдена.','activity_not_found')
+        event=community.event(db,row['event_id'],community.is_staff(db,uid))
         if not row['active']: raise APIError(409,'Эта активность сейчас недоступна.','activity_inactive')
-        event=self.item('events',row['event_id'])
         existing=db.execute('SELECT completed_at,awarded_points FROM activity_completions WHERE user_id=? AND activity_id=?',(uid,row['id'])).fetchone()
         if existing:
             stamp=existing['completed_at'];points=0
@@ -322,8 +332,26 @@ class API:
             if path.startswith('/api/admin/'):
                 return self.admin(db,method,path,body,headers)
             uid=self.session(db,headers)
+            staff=community.is_staff(db,uid)
             if method=='GET' and path=='/api/staff/session':
                 return {'role': require_staff(db,uid), 'userId':uid}
+            if method=='GET' and path=='/api/community/bootstrap':
+                role=require_staff(db,uid)
+                catalog=self.store.catalog(db,uid)
+                return {'user':{'id':uid,'role':role},'balance':self.store.balance(db,uid),
+                        'events':catalog['events'],'rewards':catalog['rewards'],
+                        'registrations':self.store.rows(db,'registrations',uid),
+                        'exchanges':self.store.rows(db,'exchanges',uid),'ledger':self.store.rows(db,'ledger',uid),
+                        'activityCompletions':self.store.activity_completions(db,uid)}
+            if method=='GET' and path=='/api/referrals/me':
+                require_staff(db,uid)
+                return referrals.get_or_create_code(db,uid)
+            if path=='/api/materials' or path.startswith('/api/materials/'):
+                if method=='POST' and not staff: self.require_profile(db,uid)
+                return learning.dispatch(db,uid,staff,method,path,body)
+            media_match=re.fullmatch(r'/api/media/([A-Za-z0-9_-]+)',path)
+            if method=='GET' and media_match:
+                return media.read(db,media_match[1],staff)
             if method=='GET' and path=='/api/bootstrap':
                 return {**self.store.bootstrap(db,uid), 'practiceAccess': self.practice.access(db,uid)}
             if path.startswith('/api/practice/'):
@@ -347,7 +375,8 @@ class API:
                 if event not in allowed: raise APIError(400,'Неизвестное аналитическое событие.')
                 db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,event,now()))
                 return {'ok':True}
-            profile=self.require_profile(db,uid)
+            communal=path=='/api/event-activities/scan' or path.startswith('/api/events/') or path.startswith('/api/rewards/')
+            profile={} if staff and communal else self.require_profile(db,uid)
             if method=='POST' and path=='/api/event-activities/scan': return self.scan_activity(db,uid,body)
             match=re.fullmatch(r'/api/tasks/([^/]+)/(draft|complete)',path)
             if match:
@@ -391,13 +420,16 @@ class API:
                 offer=self.item('offers',body.get('offerId'))
                 application_id=ident()
                 inserted=db.execute('INSERT OR IGNORE INTO applications VALUES(?,?,?,?,?,?)',(application_id,uid,offer['id'],json.dumps(profile,ensure_ascii=False),'sent',now())).rowcount>0
-                if inserted: db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,'application_sent',now()))
+                if inserted:
+                    referrals.bind_application(db,uid,application_id,body.get('referralCode'))
+                    db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,'application_sent',now()))
                 row=dict(db.execute('SELECT * FROM applications WHERE user_id=? AND offer=?',(uid,offer['id'])).fetchone())
                 row['profile']=decode(row['profile']);row['offerId']=row['offer'];row.pop('user_id')
+                row['referral']=referrals.referral_for_application(db,row['id'])
                 return {'application':row,'alreadyApplied':not inserted,'demo':True,'message':'Тестовый отклик принят сервером. Доступен в HR-кабинете демонстрации.'}
             match=re.fullmatch(r'/api/events/([^/]+)/registration',path)
             if match and method in ('POST','DELETE'):
-                event=self.item('events',match[1]);existing=db.execute('SELECT * FROM registrations WHERE user_id=? AND event=?',(uid,event['id'])).fetchone()
+                event=community.event(db,match[1],staff);existing=db.execute('SELECT * FROM registrations WHERE user_id=? AND event=?',(uid,event['id'])).fetchone()
                 if method=='POST':
                     if existing and existing['status']=='registered': return {'registration':dict(existing),'alreadyRegistered':True}
                     if datetime.fromisoformat(event['date']+'T'+event['startTime']+'+03:00').timestamp()<=time.time(): raise APIError(409,'Запись на событие завершена.','event_closed')
@@ -410,7 +442,7 @@ class API:
                     event_name='event_cancelled'
                 db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,event_name,now()))
                 row=db.execute('SELECT * FROM registrations WHERE user_id=? AND event=?',(uid,event['id'])).fetchone()
-                return {'registration':dict(row) if row else None,'catalog':self.store.catalog(db)}
+                return {'registration':dict(row) if row else None,'catalog':self.store.catalog(db,uid)}
             match=re.fullmatch(r'/api/rewards/([^/]+)/exchange',path)
             if match and method=='POST':
                 reward=self.item('rewards',match[1])
@@ -423,18 +455,38 @@ class API:
                 db.execute('INSERT INTO exchanges VALUES(?,?,?,?)',(exchange_id,uid,reward['id'],stamp))
                 db.execute('INSERT INTO ledger VALUES(?,?,?,?,?)',(ident(),uid,'exchange:'+reward['id'],-reward['cost'],stamp))
                 db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,'reward_exchanged',stamp))
-                return {'exchange':{'id':exchange_id,'reward':reward['id'],'rewardId':reward['id'],'created':stamp},'alreadyExchanged':False,'balance':self.store.balance(db,uid),'catalog':self.store.catalog(db)}
+                return {'exchange':{'id':exchange_id,'reward':reward['id'],'rewardId':reward['id'],'created':stamp},'alreadyExchanged':False,'balance':self.store.balance(db,uid),'catalog':self.store.catalog(db,uid)}
             raise APIError(404,'Маршрут не найден.','not_found')
 
-    def admin(self, db, method, path, body, headers):
+    def require_admin(self, headers):
         expected=self.config.get('ADMIN_TOKEN','')
         provided=headers.get('X-Admin-Token','')
         if not provided and headers.get('Authorization','').startswith('Bearer '): provided=headers['Authorization'][7:]
         if not expected or not hmac.compare_digest(expected.encode(),provided.encode()): raise APIError(401,'Требуется токен HR-кабинета.','admin_unauthorized')
+    def admin(self, db, method, path, body, headers):
+        self.require_admin(headers)
+        if path=='/api/admin/materials' or path.startswith('/api/admin/materials/'):
+            return learning.admin(db,method,path,body,validate_media=media.validate_media)
+        if path=='/api/admin/media' or path.startswith('/api/admin/media/'):
+            if method=='POST' and path=='/api/admin/media': return media.upload(db,body,headers)
+            return media.admin(db,method,path,body)
+        if path=='/api/admin/events' or path.startswith('/api/admin/events/'):
+            return community.admin(db,method,path,body)
+        if method=='GET' and path=='/api/admin/referral-rewards':
+            return {'rewards':referrals.merch_rewards(db)}
+        match=re.fullmatch(r'/api/admin/applications/([^/]+)/hire',path)
+        if method=='POST' and match:
+            return referrals.mark_hired(db,match[1],actor='hr-admin')
+        match=re.fullmatch(r'/api/admin/referral-rewards/([^/]+)',path)
+        if method=='PATCH' and match:
+            if body.get('status')!='issued': raise APIError(422,'Поддерживается только подтверждение выдачи мерча.')
+            return referrals.mark_reward_issued(db,match[1],actor='hr-admin')
         if method=='GET' and path=='/api/admin/applications':
             applications=[]
             for row in db.execute('SELECT * FROM applications ORDER BY created DESC'):
-                row=dict(row);row['profile']=decode(row['profile']);row['offerId']=row['offer'];row['userId']=row.pop('user_id');applications.append(row)
+                row=dict(row);row['profile']=decode(row['profile']);row['offerId']=row['offer'];row['userId']=row.pop('user_id')
+                row['referral']=referrals.referral_for_application(db,row['id'],admin=True)
+                applications.append(row)
             return {'applications':applications,'demo':True}
         match=re.fullmatch(r'/api/admin/applications/([^/]+)',path)
         if match and method=='PATCH':
@@ -475,13 +527,28 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def send_media(self, result):
+        self.send_response(200)
+        self.send_header('Content-Type',result['mimeType'])
+        self.send_header('Content-Length',str(len(result['content'])))
+        self.send_header('Content-Disposition','inline; filename="'+result['filename']+'"')
+        self.send_header('Cache-Control','private, no-store')
+        self.send_header('X-Content-Type-Options','nosniff')
+        self.send_header('Content-Security-Policy',"default-src 'none'; sandbox")
+        origin=self.headers.get('Origin','')
+        if origin and origin in self.server.api.config.get('ALLOWED_ORIGINS','').split(','):
+            self.send_header('Access-Control-Allow-Origin',origin)
+            self.send_header('Vary','Origin')
+        self.end_headers()
+        if self.command!='HEAD': self.wfile.write(result['content'])
+
     def do_OPTIONS(self):
         origin=self.headers.get('Origin','')
         if origin not in self.server.api.config.get('ALLOWED_ORIGINS','').split(','):
             return self.send_json(403,{'error':'Origin is not allowed','code':'origin_forbidden'})
         self.send_response(204)
         self.send_header('Access-Control-Allow-Origin',origin)
-        self.send_header('Access-Control-Allow-Headers','Authorization, Content-Type, X-Admin-Token')
+        self.send_header('Access-Control-Allow-Headers','Authorization, Content-Type, X-Admin-Token, X-File-Name, X-Media-Audience')
         self.send_header('Access-Control-Allow-Methods','GET, POST, PUT, DELETE, PATCH, OPTIONS')
         self.send_header('Content-Length','0');self.end_headers()
 
@@ -524,15 +591,22 @@ class Handler(BaseHTTPRequestHandler):
             raw_length=self.headers.get('Content-Length','0')
             try: length=int(raw_length)
             except ValueError: raise APIError(400,'Некорректная длина запроса.')
-            if length<0 or length>MAX_BODY: raise APIError(413,'Запрос слишком большой.')
+            upload=self.command=='POST' and urlsplit(self.path).path.rstrip('/')=='/api/admin/media'
+            if upload: self.server.api.require_admin(self.headers)
+            if length<0 or length>(media.MAX_UPLOAD if upload else MAX_BODY): raise APIError(413,'Запрос слишком большой.')
             body={}
-            if length:
+            if upload:
+                body=self.rfile.read(length)
+                if len(body)!=length: raise APIError(400,'Файл загружен не полностью.')
+            elif length:
                 if 'application/json' not in self.headers.get('Content-Type',''): raise APIError(415,'Используйте application/json.')
                 try: body=json.loads(self.rfile.read(length))
                 except (ValueError,UnicodeDecodeError): raise APIError(400,'Некорректный JSON.')
                 if not isinstance(body,dict): raise APIError(400,'Тело запроса должно быть объектом.')
             result=self.server.api.dispatch(self.command,self.path,body,self.headers,self.client_address[0])
-            self.send_json(200,result)
+            if isinstance(result,dict) and isinstance(result.get('content'),bytes):
+                self.send_media(result)
+            else: self.send_json(200,result)
         except APIError as exc:
             error={'error':exc.message,'code':exc.code}
             if exc.details: error['details']=exc.details
