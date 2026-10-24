@@ -15,6 +15,7 @@ import { GamePlayer } from "./games/Games";
 import { GameCatalog } from "./games/GameCatalog";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
+import { StaffPortal } from "./practice/StaffPortal";
 import { DraftConflictError, syncDraftClock } from "./draftClock";
 import { localStore, sessionStore } from "./storage";
 import {
@@ -275,6 +276,7 @@ export default function App() {
   const privacy = page === "privacy";
 
   if (page === "admin") return <Admin />;
+  if (["login", "practice", "mentor"].includes(page)) return <StaffPortal page={page} />;
   if (loading)
     return (
       <main className="app-shell screen loading" aria-busy="true">
@@ -335,6 +337,7 @@ export default function App() {
             Открыть свой маршрут
           </Button>
           <p className="small">Играй · узнавай компанию · выбирай практику</p>
+          <Button secondary onClick={() => navigate("login")}>Я уже в Очаково</Button>
           <WelcomeHistory />
         </main>
       );
@@ -390,6 +393,7 @@ export default function App() {
     case "home":
       content = (
         <>
+          <Button secondary onClick={() => navigate("login")}>Я уже в Очаково</Button>
           <section className="hero stack">
             <p className="eyebrow">ОТКРЫВАЕМ ВКУС К ДЕЛУ</p>
             <div className="hero-row row">

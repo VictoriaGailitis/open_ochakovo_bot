@@ -1,5 +1,5 @@
 {
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "purpose": "Entity inventory for a future admin; no live data or credentials",
   "sources": [
     "server/app.py",
@@ -13,16 +13,22 @@
     "server/level-rules.json",
     "src/games/sprites.ts",
     "src/games/GameSprite.tsx",
-    "src/games/sprite-manifest.json"
+    "src/games/sprite-manifest.json",
+    "server/practice.py",
+    "server/staff_auth.py",
+    "server/staff_accounts.py",
+    "src/practice/types.ts",
+    "src/practice/utils.ts"
   ],
   "scope": {
     "databaseSchemaOnly": true,
     "includesUserData": false,
     "adminImplementationIncluded": false,
-    "v5ContractStatus": "implemented_runtime_schema_1"
+    "v5ContractStatus": "implemented_runtime_schema_1",
+    "practiceContractStatus": "implemented_assigned_intern_and_mentor"
   },
   "database": {
-    "tableCount": 10,
+    "tableCount": 22,
     "foreignKeysEnabled": true,
     "cascadeDeletes": false,
     "entities": [
@@ -954,6 +960,1426 @@
         "checks": [
           "awarded_points BETWEEN 1 AND 1000"
         ]
+      },
+      {
+        "id": "StaffAccount",
+        "table": "staff_credentials",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "manually provisioned staff identity and active flag",
+        "currentWriteCapability": "provision_account internally; password login; no public registration",
+        "fields": [
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "login",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "password_hash",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": true,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "role",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "active",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_staff_credentials_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "login"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_staff_credentials_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "user_id"
+            ]
+          }
+        ],
+        "checks": [
+          "role IN ('intern','mentor')",
+          "active IN (0,1)"
+        ],
+        "technical": false
+      },
+      {
+        "id": "StaffLoginAttempt",
+        "table": "staff_login_attempts",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "hashed IP/login throttle, not practice analytics",
+        "currentWriteCapability": "authentication service only",
+        "fields": [
+          {
+            "sqlName": "key",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": true,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "failures",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "updated",
+            "sqlType": "REAL",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_staff_login_attempts_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "key"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": true
+      },
+      {
+        "id": "PracticeMigration",
+        "table": "practice_migrations",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "technical applied migration marker",
+        "currentWriteCapability": "schema migration only",
+        "fields": [
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "applied",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [],
+        "checks": [],
+        "technical": true
+      },
+      {
+        "id": "Mentor",
+        "table": "mentors",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "one mentor profile per user",
+        "currentWriteCapability": "internal provision_mentor",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "name",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "name"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "position",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "position"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "contact",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "contact"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "about",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "''",
+            "apiNames": [
+              "about"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "office_hours",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "''",
+            "apiNames": [
+              "office_hours"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_mentors_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "user_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_mentors_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticePlacement",
+        "table": "practices",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "assigned practice with period, current mentor and embedded content",
+        "currentWriteCapability": "internal provision_practice/assign_mentor; owner onboarding PUT",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "mentor_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "mentor_id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "title",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "title"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "department",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "department"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "start_date",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "start_date"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "end_date",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "end_date"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "coordinator",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'{}'",
+            "apiNames": [
+              "coordinator"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "arrival",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "''",
+            "apiNames": [
+              "arrival"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "onboarding",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'[]'",
+            "apiNames": [
+              "onboarding"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "documents",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'[]'",
+            "apiNames": [
+              "documents"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "mentor_id",
+            "references": {
+              "table": "mentors",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_practices_mentor",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "mentor_id"
+            ]
+          },
+          {
+            "name": "idx_practices_user",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "user_id",
+              "start_date"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_practices_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [
+          "status IN ('scheduled','active','completed','cancelled')",
+          "start_date <= end_date"
+        ],
+        "technical": false
+      },
+      {
+        "id": "PracticeGoal",
+        "table": "practice_goals",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "versioned goal and immutable approved content",
+        "currentWriteCapability": "assigned mentor creates/edits; owner advances; mentor approves",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "title",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "title"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "description",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "description"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "criteria",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "criteria"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "due_date",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "due_date"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'planned'",
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "mentor_comment",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "''",
+            "apiNames": [
+              "mentor_comment"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [
+              "version"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "client_key",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_goals_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "practice_id",
+              "client_key"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_practice_goals_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticeMeeting",
+        "table": "practice_meetings",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "versioned meeting with UTC instants",
+        "currentWriteCapability": "assigned mentor creates/reschedules/changes status",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "title",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "title"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "starts_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "starts_at"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "ends_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "ends_at"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "location",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "location"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "agenda",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "agenda"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'scheduled'",
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [
+              "version"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "client_key",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_meetings_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "practice_id",
+              "client_key"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_practice_meetings_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticeFeedback",
+        "table": "practice_feedback",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "feedback with historical author name and mentor ID",
+        "currentWriteCapability": "assigned mentor append only",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "mentor_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "mentor_id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "author_name",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "author_name"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "body",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "body"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "client_key",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "mentor_id",
+            "references": {
+              "table": "mentors",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_feedback_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "practice_id",
+              "client_key"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_practice_feedback_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticeCheckin",
+        "table": "practice_checkins",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "private optional self-report; one row per Moscow week",
+        "currentWriteCapability": "owner weekly PUT",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "week",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "week"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "answers",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "answers"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_checkins_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "practice_id",
+              "week"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_practice_checkins_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticeRequest",
+        "table": "practice_requests",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "recipient-isolated versioned support request",
+        "currentWriteCapability": "owner creates; assigned mentor replies only to mentor target",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "target",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "target"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "topic",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "topic"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "body",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "body"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'received'",
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "response",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "''",
+            "apiNames": [
+              "response"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [
+              "version"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "client_key",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_requests_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "practice_id",
+              "client_key"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_practice_requests_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticeCareerPreference",
+        "table": "practice_career",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "current private preference, not a job offer or hiring decision",
+        "currentWriteCapability": "owner PUT",
+        "fields": [
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "interested",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "interested"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "direction",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "direction"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "schedule",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "schedule"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "comment",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "comment"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_career_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "practice_id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
+      },
+      {
+        "id": "PracticeActivity",
+        "table": "practice_activity",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "partial business activity, not QR activity or full admin audit",
+        "currentWriteCapability": "domain service append on selected operations",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "practice_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "actor_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "event",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "actor_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "practice_id",
+            "references": {
+              "table": "practices",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_practice_activity_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": false
       }
     ]
   },
@@ -1169,7 +2595,43 @@
     ],
     "activity": "active boolean",
     "progress": "completed nullable timestamp",
-    "exchange": "presence of row only"
+    "exchange": "presence of row only",
+    "staffRole": [
+      "intern",
+      "mentor"
+    ],
+    "practice": [
+      "scheduled",
+      "active",
+      "completed",
+      "cancelled"
+    ],
+    "practiceGoal": [
+      "planned",
+      "in_progress",
+      "review",
+      "approved"
+    ],
+    "practiceMeeting": [
+      "scheduled",
+      "completed",
+      "cancelled"
+    ],
+    "practiceRequest": [
+      "received",
+      "in_progress",
+      "resolved"
+    ],
+    "practiceRequestTarget": [
+      "mentor",
+      "coordinator"
+    ],
+    "practiceOnboardingStep": [
+      "arrival",
+      "documents",
+      "safety",
+      "team"
+    ]
   },
   "computedFields": {
     "balance": "SUM ledger.delta by user",
@@ -1214,7 +2676,12 @@
     "admin audit log",
     "consent history",
     "reward fulfilment workflow",
-    "arbitrary points correction"
+    "arbitrary points correction",
+    "staff account management UI/API",
+    "practice assignment management UI/API",
+    "coordinator request inbox/reply",
+    "private practice reports admin permissions",
+    "mentor assignment history"
   ],
   "proposedEditorEntities": [
     {
@@ -1364,7 +2831,13 @@
     "validate solutions on server; presentation is not authoritative",
     "no eval or executable code in content",
     "do not expose private rule definitions in public catalog",
-    "published definitions should be immutable with draft migrations"
+    "published definitions should be immutable with draft migrations",
+    "do not expose checkins or career preferences to mentors",
+    "do not expose coordinator requests to mentors",
+    "approved goals are read only",
+    "mentor reassignment revokes former mentor access without rewriting historical feedback authors",
+    "accepted applications do not automatically create practice placements",
+    "staff roles do not grant HR or admin rights"
   ],
   "reviewNeededBeforeAdmin": [
     "content version storage",
@@ -1733,5 +3206,278 @@
     "legacyMissingBelts": "empty list",
     "legacyMissingBeltConfiguration": "nonempty belts rejected",
     "databaseTablesAdded": false
+  },
+  "practiceModule": {
+    "status": "implemented",
+    "routes": [
+      "/#/login",
+      "/#/practice",
+      "/#/mentor"
+    ],
+    "identity": {
+      "userNamespace": "staff:",
+      "roleStorage": "staff_credentials.role",
+      "assignmentAuthorization": "practices.user_id or currently assigned mentors.user_id",
+      "roleAndAssignmentConsistency": "must be enforced by future administrative provisioning; existence checks alone do not establish matching roles"
+    },
+    "session": {
+      "storage": "sessions",
+      "lifetimeHours": 12,
+      "tokenHash": "SHA-256",
+      "clientStorage": "sessionStorage, separate staff token",
+      "activeStaffRequiredForPractice": true,
+      "passwordScheme": "PBKDF2-SHA256 with random salt, 600000 iterations",
+      "passwordLength": [
+        12,
+        256
+      ],
+      "rateLimit": {
+        "key": "SHA-256(peer IP + NUL + normalized login)",
+        "failedAttempts": 8,
+        "windowSeconds": 900
+      }
+    },
+    "embeddedEntities": [
+      {
+        "id": "PracticeCoordinatorContact",
+        "storage": "practices.coordinator JSON",
+        "fields": {
+          "name": "string <=300",
+          "contact": "string <=300"
+        },
+        "accountForeignKey": false
+      },
+      {
+        "id": "PracticeOnboardingProgress",
+        "storage": "practices.onboarding JSON array",
+        "allowedSteps": [
+          "arrival",
+          "documents",
+          "safety",
+          "team"
+        ],
+        "separateTable": false
+      },
+      {
+        "id": "PracticeDocumentStatus",
+        "storage": "practices.documents JSON array",
+        "fields": {
+          "title": "string <=200",
+          "status": "string <=200"
+        },
+        "provisioningMaximumItems": 20,
+        "hasFilesOrSignatures": false,
+        "hasStableDocumentId": false
+      },
+      {
+        "id": "PracticeCheckinAnswers",
+        "storage": "practice_checkins.answers JSON",
+        "ratings": {
+          "fields": [
+            "mood",
+            "comfort",
+            "workload",
+            "clarity",
+            "support"
+          ],
+          "range": [
+            1,
+            5
+          ],
+          "nullable": true
+        },
+        "commentMaximum": 2000,
+        "week": "Moscow Monday YYYY-MM-DD"
+      }
+    ],
+    "computedFields": {
+      "studentName": "current users.profile.fullName, not a snapshot",
+      "periodProgress": "elapsed practice dates, clamped 0..100",
+      "goalProgress": "approved goals / total goals",
+      "calendar": "practice meetings",
+      "resultReport": "practice + goals + feedback; excludes checkins and career"
+    },
+    "privacy": {
+      "mentorExcluded": [
+        "checkins",
+        "career",
+        "coordinator contact",
+        "requests with target=coordinator"
+      ],
+      "currentAdminReadTransportForTheseFields": false,
+      "futureCoordinatorAccess": "separately authorized, scoped and audited; no automatic staff mentor access"
+    },
+    "transitions": {
+      "goalOwner": {
+        "planned": [
+          "in_progress"
+        ],
+        "in_progress": [
+          "review"
+        ],
+        "review": [],
+        "approved": []
+      },
+      "goalMentor": {
+        "planned": [
+          "in_progress"
+        ],
+        "in_progress": [
+          "review"
+        ],
+        "review": [
+          "approved",
+          "in_progress"
+        ],
+        "approved": []
+      },
+      "approvedContentReadOnly": true,
+      "meetings": "any allowed status; rescheduling fields sets scheduled",
+      "requests": "any allowed status, resolved requires response",
+      "practiceReadOnlyStatuses": [
+        "completed",
+        "cancelled"
+      ],
+      "scheduledPracticeWritable": true
+    },
+    "concurrency": {
+      "versionedTables": [
+        "practice_goals",
+        "practice_meetings",
+        "practice_requests"
+      ],
+      "staleVersionStatus": 409,
+      "idempotency": "UNIQUE(practice_id,client_key) separately in goals/meetings/feedback/requests",
+      "weeklyCheckin": "UNIQUE(practice_id,week) upsert",
+      "career": "one row per practice upsert"
+    },
+    "internalProvisioning": [
+      {
+        "function": "server.staff_auth.provision_account",
+        "creates": [
+          "users",
+          "staff_credentials"
+        ],
+        "existingAccountOverwrite": false
+      },
+      {
+        "function": "server.practice.provision_mentor",
+        "upsertBy": "user_id"
+      },
+      {
+        "function": "server.practice.provision_practice",
+        "acceptedApplicationCreatesAutomatically": false,
+        "applicationForeignKey": false
+      },
+      {
+        "function": "server.practice.assign_mentor",
+        "previousMentorAccessRevoked": true,
+        "assignmentHistoryExists": false
+      }
+    ],
+    "activityCoverage": [
+      "practice_assigned",
+      "goal_in_progress",
+      "goal_review",
+      "goal_approved",
+      "career_interest_updated"
+    ],
+    "fullAdministrativeAudit": false,
+    "futureAdminPlan": [
+      "protected account issue/disable/recovery and role-assignment consistency",
+      "mentor directory and explicit practice/mentor assignment",
+      "period/status/coordinator/arrival/document management with date consistency",
+      "coordinator request inbox and authorized versioned reply operation",
+      "restricted checkin/career access, retention and export policy",
+      "assignment and administrative change history separate from partial practice_activity",
+      "archive/erasure workflow for all FK-linked and embedded practice records"
+    ],
+    "proposedAdditionalEntities": [
+      "MentorAssignmentHistory",
+      "AdministrativeAudit",
+      "PracticeDocumentVersion"
+    ],
+    "notImplemented": [
+      "staff self registration",
+      "public practice provisioning",
+      "coordinator account role or portal",
+      "admin UI/API for practice management",
+      "email delivery or password recovery",
+      "document storage/signatures",
+      "automatic hiring decision",
+      "link from practice to accepted application"
+    ],
+    "httpOperations": [
+      {
+        "method": "POST",
+        "path": "/api/staff/login",
+        "actor": "issued account"
+      },
+      {
+        "method": "GET",
+        "path": "/api/staff/session",
+        "actor": "active staff session"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/auth",
+        "actor": "current session"
+      },
+      {
+        "method": "GET",
+        "path": "/api/practice/bootstrap",
+        "actor": "owner and assigned mentor, filtered"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/practice/:id/onboarding",
+        "actor": "owner"
+      },
+      {
+        "method": "POST",
+        "path": "/api/practice/:id/goals",
+        "actor": "assigned mentor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/practice/:id/goals/:goal",
+        "actor": "owner transitions; mentor content/approval"
+      },
+      {
+        "method": "POST",
+        "path": "/api/practice/:id/meetings",
+        "actor": "assigned mentor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/practice/:id/meetings/:meeting",
+        "actor": "assigned mentor"
+      },
+      {
+        "method": "POST",
+        "path": "/api/practice/:id/feedback",
+        "actor": "assigned mentor"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/practice/:id/checkins",
+        "actor": "owner"
+      },
+      {
+        "method": "POST",
+        "path": "/api/practice/:id/requests",
+        "actor": "owner"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/practice/:id/requests/:request",
+        "actor": "assigned mentor, mentor target only"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/practice/:id/career",
+        "actor": "owner"
+      }
+    ]
   }
 }

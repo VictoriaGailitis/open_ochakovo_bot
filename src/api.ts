@@ -1,7 +1,7 @@
 import bridge from "@vkontakte/vk-bridge";
 import type { Bootstrap } from "./types";
 import { syncDraftClock } from "./draftClock";
-import { localStore } from "./storage";
+import { localStore, sessionStore } from "./storage";
 
 let token = "";
 export class ApiError extends Error {
@@ -50,6 +50,32 @@ function demoId() {
     localStore.set(key, id);
   }
   return id;
+}
+const STAFF_SESSION_KEY = "ochakovo:staff:session";
+export function clearStaffSession() {
+  sessionStore.remove(STAFF_SESSION_KEY);
+}
+export async function staffApi<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  const response = await fetch("/api" + path, {
+    method,
+    headers: {
+      ...(body === undefined ? {} : {"Content-Type": "application/json"}),
+      Authorization: "Bearer " + (sessionStore.get(STAFF_SESSION_KEY) ?? ""),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok) {
+    if(response.status === 401 && path !== "/staff/login") { clearStaffSession(); location.hash = "/login"; }
+    throw new ApiError(result?.error ?? "Не удалось подключиться. Попробуй ещё раз.", response.status, result?.code);
+  }
+  return result as T;
+}
+export async function loginStaff(login: string, password: string) {
+  const result = await staffApi<{token:string;role:"intern"|"mentor"}>("/staff/login", "POST", {login,password});
+  sessionStore.set(STAFF_SESSION_KEY,result.token);
+  return result.role;
 }
 export async function initialize(): Promise<{
   data: Bootstrap;
