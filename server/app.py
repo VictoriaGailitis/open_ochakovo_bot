@@ -20,6 +20,7 @@ from .solutions import validate
 from .shift import assess as assess_shift, normalize_draft as normalize_shift_draft, completion_details as shift_completion_details
 from .errors import APIError
 from .practice import Practice, migrate as migrate_practice
+from .staff_auth import migrate as migrate_staff, authenticate as staff_authenticate, require_staff
 
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = json.loads((ROOT / 'server/catalog.json').read_text())
@@ -70,6 +71,7 @@ class Store:
             if 'draft_revision' not in columns:
                 db.execute('ALTER TABLE progress ADD COLUMN draft_revision INTEGER NOT NULL DEFAULT 0')
             migrate_practice(db)
+            migrate_staff(db)
             db.commit()
 
     def connect(self):
@@ -255,14 +257,22 @@ class API:
         if method=='GET' and path=='/api/config':
             return {'devAuth':self.config.get('DEV_AUTH')=='1' and ipaddress.ip_address(peer).is_loopback,'vkConfigured':bool(self.config.get('VK_APP_SECRET') and self.config.get('VK_APP_ID'))}
         if method=='POST' and path=='/api/auth': return self.auth(body,peer,headers)
+        if method=='POST' and path=='/api/staff/login':
+            with self.store.transaction() as db:
+                result, error = staff_authenticate(db,body,peer)
+            if error: raise error
+            return result
         with self.store.transaction() as db:
             if method=='GET' and path=='/api/catalog': return self.store.catalog(db)
             if path.startswith('/api/admin/'):
                 return self.admin(db,method,path,body,headers)
             uid=self.session(db,headers)
+            if method=='GET' and path=='/api/staff/session':
+                return {'role': require_staff(db,uid), 'userId':uid}
             if method=='GET' and path=='/api/bootstrap':
                 return {**self.store.bootstrap(db,uid), 'practiceAccess': self.practice.access(db,uid)}
             if path.startswith('/api/practice/'):
+                require_staff(db,uid)
                 return self.practice.dispatch(db,uid,method,path,body)
             if method=='GET' and path=='/api/profile':
                 return {'profile':decode(db.execute('SELECT profile FROM users WHERE id=?',(uid,)).fetchone()[0])}

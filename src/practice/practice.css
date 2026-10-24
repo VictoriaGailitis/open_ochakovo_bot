@@ -415,3 +415,7 @@ body:has(.p-shell) {
 main.p-content:focus {
   outline: none;
 }
+
+.p-login-mascot { display:flex; justify-content:center; margin:8px 0; }
+.p-login-mascot svg { max-width:180px; max-height:160px; }
+.p-logout { background:transparent; border:0; color:var(--ink); cursor:pointer; font:inherit; padding:8px; text-decoration:underline; }

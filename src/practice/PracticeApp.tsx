@@ -6,8 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { api, ApiError, setDemoIdentity } from "../api";
-import { sessionStore } from "../storage";
+import { staffApi as api, ApiError } from "../api";
 import { Mascot } from "../components/Art";
 import type {
   Goal,
@@ -130,7 +129,7 @@ function Contact({ value }: { value: string }) {
   );
 }
 
-export function PracticeApp({ mode }: { mode: string }) {
+export function PracticeApp({ onLogout }: { onLogout: () => Promise<void> }) {
   const [route, setRoute] = useState(parse);
   const [data, setData] = useState<PracticeData | null>(null);
   const [loading, setLoading] = useState(true),
@@ -219,30 +218,6 @@ export function PracticeApp({ mode }: { mode: string }) {
       setBusy(false);
     }
   };
-  async function seedDemo() {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      const ids = await api<{
-        mentorDevUserId: string;
-        internDevUserId: string;
-      }>("/practice/demo", "POST", {});
-      sessionStore.set("ochakovo:practice:demo-mentor", ids.mentorDevUserId);
-      sessionStore.set("ochakovo:practice:demo-intern", ids.internDevUserId);
-      await reload();
-      setToast("Демонстрационная практика готова");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось создать демо.");
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
-  }
-  const demoOther = sessionStore.get(
-    `ochakovo:practice:demo-${mentorView ? "intern" : "mentor"}`,
-  );
   const nav = mentorView
     ? [
         ["home", "⌂", "Практиканты"],
@@ -308,18 +283,7 @@ export function PracticeApp({ mode }: { mode: string }) {
             ? "Эта практика не найдена или не назначена тебе."
             : "Когда администратор подтвердит выход и создаст практику, здесь появятся даты, наставник и твой план."}
         </Empty>
-        {data.demo && !mentorView && (
-          <div className="card stack">
-            <h2>Попробовать на примере</h2>
-            <p className="small muted">
-              Отдельные учебные данные: практика, наставник, цели и встреча.
-              Существующий профиль сохраняется.
-            </p>
-            <Button disabled={busy} onClick={() => void seedDemo()}>
-              Создать демопрактику
-            </Button>
-          </div>
-        )}
+
       </>
     );
   else {
@@ -396,28 +360,12 @@ export function PracticeApp({ mode }: { mode: string }) {
           Очаково: изнутри
         </a>
         <span className="tag">{mentorView ? "Наставник" : "Практикант"}</span>
+        <button className="p-logout" onClick={() => void onLogout()}>Выйти</button>
       </header>
       <main ref={heading} tabIndex={-1} className="screen p-content stack">
         <a className="p-return" href="#/home">
           ← Карьерный раздел
         </a>
-        {mode === "demo" && (
-          <div className="p-demo">
-            <span>Локальная демонстрация</span>
-            {demoOther && (
-              <button
-                disabled={busy}
-                onClick={() => {
-                  setDemoIdentity(demoOther);
-                  location.hash = mentorView ? "/practice" : "/mentor";
-                  location.reload();
-                }}
-              >
-                Открыть как {mentorView ? "практикант" : "наставник"}
-              </button>
-            )}
-          </div>
-        )}
         {error && (
           <div className="error" role="alert">
             {error}

@@ -1,4 +1,3 @@
-import copy
 import json
 import tempfile
 import unittest
@@ -6,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from server.app import API, APIError, Store
+from server.staff_auth import provision_account
 from server.practice import assign_mentor, provision_mentor, provision_practice
 
 PROFILE = {'fullName': 'Анна Петрова', 'contact': 'student@example.org', 'birthDate': '2004-01-02',
@@ -22,8 +22,8 @@ class PracticeTest(unittest.TestCase):
         self.other = self.login('other')
         self.mentor = self.login('mentor')
         with self.store.transaction() as db:
-            self.mid = provision_mentor(db, user_id='demo:mentor', name='Елена Смирнова', position='Наставник', contact='mentor@example.org')
-            self.pid = provision_practice(db, user_id='demo:student', title='Лаборатория', department='Качество',
+            self.mid = provision_mentor(db, user_id='staff:mentor', name='Елена Смирнова', position='Наставник', contact='mentor@example.org')
+            self.pid = provision_practice(db, user_id='staff:student', title='Лаборатория', department='Качество',
                                           start_date='2026-01-01', end_date='2027-12-31', mentor_id=self.mid, status='active',
                                           coordinator={'name': 'Координатор', 'contact': 'coordinator@example.org'})
 
@@ -31,10 +31,11 @@ class PracticeTest(unittest.TestCase):
         self.temp.cleanup()
 
     def login(self, name):
-        auth = self.api.dispatch('POST', '/api/auth', {'devUserId': name})
-        headers = {'Authorization': 'Bearer ' + auth['token']}
-        self.api.dispatch('PUT', '/api/profile', copy.deepcopy(PROFILE), headers)
-        return headers
+        with self.store.transaction() as db:
+            provision_account(db, user_id='staff:'+name, login=name, password='Test-password-123!', role='intern' if name=='student' else 'mentor')
+            db.execute('UPDATE users SET profile=? WHERE id=?', (json.dumps(PROFILE), 'staff:'+name))
+        auth = self.api.dispatch('POST', '/api/staff/login', {'login': name, 'password': 'Test-password-123!'})
+        return {'Authorization': 'Bearer ' + auth['token']}
 
     def call(self, method, kind='bootstrap', body=None, who=None):
         path = '/api/practice/' + (kind if kind in ('bootstrap', 'demo') else self.pid + '/' + kind)
@@ -138,7 +139,7 @@ class PracticeTest(unittest.TestCase):
         self.call('POST', 'feedback', {'body': 'Повтор', 'clientKey': 'feedback-unique'}, self.mentor)
         self.assertEqual(len(self.placement()['feedback']), 1)
         with self.store.transaction() as db:
-            mid = provision_mentor(db, user_id='demo:other', name='Новый наставник', position='Специалист', contact='new@example.org')
+            mid = provision_mentor(db, user_id='staff:other', name='Новый наставник', position='Специалист', contact='new@example.org')
             assign_mentor(db, self.pid, mid)
         self.assertEqual(self.call('GET', who=self.mentor)['mentees'], [])
         self.expect(404, lambda: self.call('POST', 'feedback', {'body': 'x', 'clientKey': 'new-feedback'}, self.mentor))
@@ -157,21 +158,13 @@ class PracticeTest(unittest.TestCase):
         self.assertEqual(self.placement()['onboarding'], ['arrival', 'safety'])
         self.assertEqual(self.placement()['status'], 'completed')
 
-    def test_demo_is_repeatable_and_disabled_for_real_sessions(self):
-        headers = self.login('demo-seed')
-        first = self.call('POST', 'demo', {}, headers)
-        second = self.call('POST', 'demo', {}, headers)
-        self.assertEqual(first, second)
-        p = self.call('GET', who=headers)['practices'][0]
-        self.assertEqual(len(p['goals']), 5)
-        self.assertEqual(len(p['meetings']), 1)
-        h = self.login(first['mentorDevUserId'])
-        self.assertEqual(self.call('GET', who=h)['mentees'][0]['id'], p['id'])
+    def test_no_public_registration_or_demo(self):
+        self.expect(404, lambda: self.call('POST', 'demo', {}))
+        self.expect(404, lambda: self.api.dispatch('POST', '/api/staff/register', {}, self.student))
+        token = self.api.dispatch('POST', '/api/auth', {'devUserId':'candidate'})['token']
+        self.expect(401, lambda: self.api.dispatch('GET', '/api/practice/bootstrap', headers={'Authorization':'Bearer '+token}))
         prod = API(self.store, {})
-        self.expect(403, lambda: prod.dispatch('POST', '/api/practice/demo', {}, headers))
-        with self.store.transaction() as db:
-            db.execute("INSERT INTO users(id) VALUES('vk:123')")
-            self.expect(403, lambda: self.api.practice.dispatch(db, 'vk:123', 'POST', '/api/practice/demo', {}))
+        self.assertEqual(prod.dispatch('GET', '/api/staff/session', headers=self.mentor)['role'], 'mentor')
 
 
 if __name__ == '__main__':

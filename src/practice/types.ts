@@ -78,7 +78,6 @@ export interface PracticeData {
   practices: Placement[];
   mentor: Mentor | null;
   mentees: Placement[];
-  demo: boolean;
   today: string;
   week: string;
 }

@@ -3,7 +3,6 @@
 No admin UI or self-service role/assignment endpoint is provided here.
 All request handlers run inside the API's existing SQLite transaction.
 """
-import hashlib
 import json
 import re
 import secrets
@@ -238,7 +237,6 @@ class Practice:
         return {'practices': [self.serialize(db, p, uid, True) for p in mine],
                 'mentor': dict(mentor) if mentor else None,
                 'mentees': [self.serialize(db, p, uid, False) for p in assigned],
-                'demo': self.config.get('DEV_AUTH') == '1' and uid.startswith('demo:'),
                 'today': datetime.now(MSK).date().isoformat(),
                 'week': self.week()}
 
@@ -250,10 +248,6 @@ class Practice:
     def dispatch(self, db, uid, method, path, body):
         if method == 'GET' and path == '/api/practice/bootstrap':
             return self.bootstrap(db, uid)
-        if method == 'POST' and path == '/api/practice/demo':
-            if self.config.get('DEV_AUTH') != '1' or not uid.startswith('demo:'):
-                raise APIError(403, 'Демо доступно только локальным демопользователям.', 'demo_disabled')
-            return self.seed_demo(db, uid)
         match = re.fullmatch(r'/api/practice/([^/]+)/(onboarding|goals|meetings|feedback|checkins|requests|career)(?:/([^/]+))?', path)
         if not match:
             raise APIError(404, 'Маршрут практики не найден.', 'not_found')
@@ -387,39 +381,3 @@ class Practice:
         if not (p['start_date'] <= start.astimezone(MSK).date().isoformat() <= end.astimezone(MSK).date().isoformat() <= p['end_date']):
             raise APIError(422, 'Встреча должна попадать в период практики.')
         return title, start.isoformat(), end.isoformat(), location, agenda
-
-    def seed_demo(self, db, uid):
-        # Calling twice never recreates goals or overwrites the user's work.
-        digest = hashlib.sha256(uid.encode()).hexdigest()[:16]
-        mentor_raw = 'practice-mentor-' + digest
-        mentor_uid = 'demo:' + mentor_raw
-        db.execute('INSERT OR IGNORE INTO users(id,profile) VALUES(?,?)', (mentor_uid, json.dumps({
-            'fullName': 'Елена Смирнова', 'contact': 'mentor@example.org', 'birthDate': '1990-01-01',
-            'direction': 'lab', 'availability': 'Сейчас', 'education': 'Демонстрационный профиль',
-            'schedule': 'Пн–пт', 'consent': True, 'futureContact': False}, ensure_ascii=False)))
-        mid = provision_mentor(db, user_id=mentor_uid, name='Елена Смирнова', position='Ведущий специалист лаборатории',
-                               contact='mentor@example.org', about='Помогу разобраться с методами исследования и задачами лаборатории.',
-                               office_hours='Пн–пт, 09:00–17:00. Вопросы — после утренней встречи.')
-        existing = db.execute('SELECT id FROM practices WHERE user_id=?', (uid,)).fetchone()
-        if not existing:
-            today = datetime.now(MSK).date()
-            start, end = today - timedelta(days=7), today + timedelta(days=28)
-            pid = provision_practice(db, user_id=uid, title='Лаборатория и качество', department='Лаборатория',
-                                     start_date=start.isoformat(), end_date=end.isoformat(), mentor_id=mid, status='active',
-                                     coordinator={'name': 'Координатор практики', 'contact': 'practice@example.org'},
-                                     arrival='Главная проходная, 09:00. Наставник встретит у входа. Возьми паспорт и направление на практику.',
-                                     documents=[{'title': 'Отчёт по практике', 'status': 'В подготовке'}, {'title': 'Характеристика', 'status': 'После итоговой встречи'}])
-            for n, (title, status) in enumerate([('Познакомиться с лабораторией', 'approved'), ('Освоить правила безопасности', 'approved'),
-                                                ('Разобрать метод исследования', 'in_progress'), ('Провести исследование вместе', 'planned'),
-                                                ('Представить результаты команде', 'planned')]):
-                db.execute('''INSERT INTO practice_goals(id,practice_id,title,description,criteria,due_date,status,client_key)
-                           VALUES(?,?,?,?,?,?,?,?)''', (new_id(), pid, title, 'Вместе с наставником освоить следующий шаг.',
-                           'Объяснить последовательность действий и обсудить результат с наставником.',
-                           (today + timedelta(days=min(3 + n * 5, 28))).isoformat(), status, 'demo-goal-' + str(n)))
-            meeting = datetime.combine(today + timedelta(days=1), datetime.min.time(), MSK).replace(hour=14)
-            db.execute('''INSERT INTO practice_meetings(id,practice_id,title,starts_at,ends_at,location,agenda,client_key)
-                       VALUES(?,?,?,?,?,?,?,?)''', (new_id(), pid, 'Сверим, как идут дела', meeting.isoformat(),
-                       (meeting + timedelta(minutes=30)).isoformat(), 'Лаборатория, 2 этаж', 'Первые результаты, вопросы и план на неделю.', 'demo-meeting'))
-            db.execute('INSERT INTO practice_feedback VALUES(?,?,?,?,?,?,?)', (new_id(), pid, mid, 'Елена Смирнова',
-                       'Ты внимательно работаешь с материалами и задаёшь точные вопросы. Дальше разберём метод исследования на примере.', stamp(), 'demo-feedback'))
-        return {'saved': True, 'mentorDevUserId': mentor_raw, 'internDevUserId': uid.removeprefix('demo:')}
