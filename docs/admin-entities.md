@@ -4,7 +4,7 @@
 
 **Статусы документа:** `implemented` — существует в приложении; `proposed` — предложение для будущей реализации. Наличие сущности в проектной модели не означает, что её редактор, таблица или API уже реализованы.
 
-Источники: `server/app.py`, `server/catalog.json`, `server/solutions.py`, `server/shift.py`, `server/level_rules.py`, `server/level-rules.json`, `src/types.ts`, `src/games/types.ts`, `src/games/ShiftTypes.ts`, `src/games/sprites.ts`, `src/games/GameSprite.tsx`, `src/games/sprite-manifest.json`, `server/practice.py`, `server/staff_auth.py`, `server/staff_accounts.py`, `src/practice/types.ts`. Машиночитаемое дополнение — [admin-entities.json](admin-entities.json).
+Источники: `server/app.py`, `server/catalog.json`, `server/solutions.py`, `server/shift.py`, `server/level_rules.py`, `server/level-rules.json`, `src/types.ts`, `src/games/types.ts`, `src/games/ShiftTypes.ts`, `src/games/sprites.ts`, `src/games/GameSprite.tsx`, `src/games/sprite-manifest.json`, `server/practice.py`, `server/staff_auth.py`, `server/staff_accounts.py`, `src/practice/types.ts`, `server/community.py`, `server/media.py`, `server/learning.py`, `server/referrals.py`. Машиночитаемое дополнение — [admin-entities.json](admin-entities.json).
 
 ## 1. Где находится источник истины
 
@@ -13,8 +13,11 @@
 | Пользовательские данные | Пользователь, профиль, сессия, прогресс, ledger, отклик, запись, обмен, аналитическое событие | 8 таблиц SQLite | Только существующие пользовательские действия и ограниченный HR-доступ |
 | Активности событий | Определение активности, выполнение активности | 2 таблицы SQLite | Публичный просмотр и сканирование; organizer CRUD и выдачи QR нет |
 | Практика и наставники | Назначение практики, наставник, цели, встречи, отзывы, опросы, обращения, карьерные предпочтения, журнал действий | 9 предметных таблиц и `practice_migrations` | Пользовательские действия по назначению; provisioning — внутренние Python-функции |
-| Вход сотрудников | Выданная учётная запись и ограничение попыток входа | 2 таблицы SQLite; сессии в общей `sessions` | Логин/пароль, роли `intern` / `mentor`; регистрации и публичного provisioning нет |
-| Контент | Семейства игр, задания/уровни, предложения карьеры, мероприятия, награды | `server/catalog.json` | Правка исходных файлов; редактора контента нет |
+| Вход сотрудников | Выданная учётная запись и ограничение попыток входа | 2 таблицы SQLite; сессии в общей `sessions` | Логин/пароль, роли `intern` / `mentor` / `employee`; регистрации и публичного provisioning нет |
+| Контент | Семейства игр, задания/уровни, предложения карьеры, награды | `server/catalog.json` | Правка исходных файлов; редактора этих каталогов нет |
+| Материалы и медиа | Материал, версии, вопросы, выполнения, бинарный файл | 5 таблиц SQLite | Защищённый backend CRUD/upload и пользовательское чтение/тесты; отдельного конструктора админки нет |
+| Мероприятия | Persisted event definition с audience/publication | `career_events` SQLite | Защищённый backend CRUD, пользовательские записи и QR-активности |
+| Рефералка | Код, происхождение отклика, право на мерч | 3 таблицы SQLite | Код практиканта, отметка HR; защищённое подтверждение найма и выдачи мерча |
 | Правила игры | Проверка решения; приватные определения истории и смены | Python-валидаторы и `server/level-rules.json` | Правка исходного файла с перезапуском; контентного CRUD/публикации нет |
 | Представление v5 | 16 модульных SpriteAsset, роли, GamePresentation, SceneObject; компоненты и CSS | Публичный asset manifest и `Task.presentation` | Runtime-композиция реализована; редактора/загрузки assets через админку нет |
 | Будущий редактор | Версии LevelDefinition/RuleSet, SpriteModule со слотами, LevelObject с привязкой к puzzle | **proposed** | Расширение существующих runtime-сущностей, не действующая админка |
@@ -25,7 +28,7 @@ Runtime-источник активностей — SQLite. `events[].activities
 
 ## 2. Базовые десять таблиц SQLite — implemented
 
-Всего после объединения внутреннего раздела — **22 таблицы**: десять ниже, десять таблиц практики и две таблицы входа сотрудников. Новые таблицы, вложенные объекты и административные операции перечислены в разделе 12.
+Всего в актуальной схеме — **31 таблица**: десять базовых, десять практики, две входа сотрудников, одна мероприятий, пять материалов/версий/вопросов/выполнений/медиа и три рефералки. Проверка выполнена в пустой SQLite в памяти из исходного DDL; рабочая база и её строки не читались. Полный набор SQL-полей, PK/FK/UQ, индексов и DDL находится в JSON-инвентаре. Разделы 12–14 описывают новые сущности и доступ.
 
 Обозначения: **PK** — первичный ключ, **UQ** — уникальность, **FK** — реально объявленный внешний ключ. Ссылки на JSON-каталоги ниже — логические: SQLite не проверяет существование соответствующего каталожного ID. `PRAGMA foreign_keys=ON` включён на каждом соединении; каскадных удалений нет.
 
@@ -38,10 +41,10 @@ Runtime-источник активностей — SQLite. `events[].activities
 | `progress` | `user_id TEXT`, `task TEXT`, `draft TEXT DEFAULT '{}'`, `completed TEXT`, `draft_revision INTEGER NOT NULL DEFAULT 0` | PK `(user_id, task)`; FK `user_id → users.id` | `task → tasks.id` логически; черновик JSON, первое завершение — timestamp или NULL |
 | `ledger` | `id TEXT`, `user_id TEXT`, `reason TEXT`, `delta INTEGER`, `created TEXT` | PK `id`; UQ `(user_id, reason)`; FK `user_id → users.id` | Журнал положительных начислений и отрицательных обменов; баланс не хранится отдельно |
 | `applications` | `id TEXT`, `user_id TEXT`, `offer TEXT`, `profile TEXT`, `status TEXT`, `created TEXT` | PK `id`; UQ `(user_id, offer)`; FK `user_id → users.id` | `offer → offers.id` логически; `profile` — снимок анкеты при отправке |
-| `registrations` | `id TEXT`, `user_id TEXT`, `event TEXT`, `status TEXT`, `created TEXT` | PK `id`; UQ `(user_id, event)`; FK `user_id → users.id` | `event → events.id` логически; отменённая запись остаётся в таблице |
+| `registrations` | `id TEXT`, `user_id TEXT`, `event TEXT`, `status TEXT`, `created TEXT` | PK `id`; UQ `(user_id, event)`; FK `user_id → users.id` | `event → career_events.id` логически; отменённая запись остаётся в таблице |
 | `exchanges` | `id TEXT`, `user_id TEXT`, `reward TEXT`, `created TEXT` | PK `id`; UQ `(user_id, reward)`; FK `user_id → users.id` | `reward → rewards.id` логически; одна награда — один обмен на пользователя |
 | `analytics` | `id INTEGER`, `user_id TEXT`, `event TEXT`, `created TEXT` | INTEGER PK `id`; FK `user_id → users.id` | `event` — имя аналитического события, **не** ID мероприятия. Нет JSON properties |
-| `event_activities` | `id TEXT`, `event_id TEXT NOT NULL`, `title TEXT NOT NULL`, `description TEXT NOT NULL`, `points INTEGER NOT NULL`, `active INTEGER NOT NULL DEFAULT 1`, `qr_token TEXT NOT NULL` | PK `id`; UQ `qr_token`; CHECK `points BETWEEN 1 AND 1000`; CHECK `active IN (0,1)` | `event_id → events.id` логически; QR-токен приватный, стабильный, создан из 32 случайных байтов |
+| `event_activities` | `id TEXT`, `event_id TEXT NOT NULL`, `title TEXT NOT NULL`, `description TEXT NOT NULL`, `points INTEGER NOT NULL`, `active INTEGER NOT NULL DEFAULT 1`, `qr_token TEXT NOT NULL` | PK `id`; UQ `qr_token`; CHECK `points BETWEEN 1 AND 1000`; CHECK `active IN (0,1)` | `event_id → career_events.id` логически; QR-токен приватный, стабильный, создан из 32 случайных байтов |
 | `activity_completions` | `user_id TEXT NOT NULL`, `activity_id TEXT NOT NULL`, `completed_at TEXT NOT NULL`, `awarded_points INTEGER NOT NULL` | PK `(user_id, activity_id)`; FK `user_id → users.id`; FK `activity_id → event_activities.id`; CHECK `awarded_points BETWEEN 1 AND 1000` | Снимок времени и суммы первого выполнения; повтор не начисляет новые баллы |
 
 Именованные индексы: `sessions(expires)`, `registrations(event,status)`, `exchanges(reward)`, `ledger(user_id)`, `event_activities(event_id,active)`, `activity_completions(activity_id)`. PK/UQ дополнительно создают соответствующие SQLite-индексы.
@@ -73,15 +76,16 @@ Runtime-источник активностей — SQLite. `events[].activities
 
 Bearer-токен возвращается при входе; в БД сохраняется только его хеш. Сессия кандидата действует 24 часа, сессия выданного staff-аккаунта — 12 часов; истёкшие сессии очищаются при новом входе; проверка срока выполняется на каждом запросе. Пользователь может завершить свою текущую сессию.
 
-VK-идентичность проверяется сервером по HMAC подписанных launch parameters. Локальный демонстрационный вход включается отдельно и не является production-авторизацией. Роли выданных аккаунтов `intern` / `mentor` хранятся в `staff_credentials`, а доступ к конкретной практике определяется её владельцем и назначенным наставником. Ролей администратора и организаций в БД нет. Текущий HR-доступ использует отдельный серверный ключ, не `users.role`; staff-роль не предоставляет административные права. Подробности внутреннего входа — в разделе 12.
+VK-идентичность проверяется сервером по HMAC подписанных launch parameters. Локальный демонстрационный вход включается отдельно и не является production-авторизацией. Роли выданных аккаунтов `intern` / `mentor` / `employee` хранятся в `staff_credentials`, а доступ к конкретной практике определяется её владельцем и назначенным наставником. Ролей администратора и организаций в БД нет. Текущий HR-доступ использует отдельный серверный ключ, не `users.role`; staff-роль не предоставляет административные права. Подробности внутреннего входа — в разделе 12.
 
 ### 2.3. Баллы и неизменяемая история
 
-У `ledger.reason` три рабочих соглашения:
+У `ledger.reason` четыре рабочих соглашения:
 
 - `task:<taskId>` — первое содержательное завершение задания/уровня.
 - `exchange:<rewardId>` — списание при обмене награды.
 - `event-activity:<activityId>` — первое выполнение активности по QR.
+- `material:<materialId>` — первое успешное прохождение теста материала. Каноническая история использует прежний `task:history-1`, чтобы не начислять повторно за тот же результат.
 
 Ссылки внутри reason не являются FK. UQ `(user_id,reason)` и транзакции защищают повторные начисления. Для активности дополнительно существует уникальный completion. `awarded_points` — историческая сумма: изменение определения активности не переписывает заработок. Для обмена историческая стоимость отражена отрицательным `ledger.delta`; отдельного `cost` в `exchanges` нет.
 
@@ -150,7 +154,7 @@ VK-идентичность проверяется сервером по HMAC п
 
 ### 4.3. CareerEvent
 
-Поля JSON: `id,title,date,startTime,location,type,description,capacity,remaining,demo,activities[]`. В UI-типе предусмотрены `requirements?` и `program?`; это необязательные возможности интерфейса. `remaining` пересчитывается сервером, JSON-значение не является источником текущего остатка. Дата/время события интерпретируются в UTC+3.
+Runtime-источник — `career_events`: `id`, JSON `definition`, `audience`, `published`. JSON-каталог служит первоначальным seed, перезапуск не переписывает сохранённые изменения. Definition содержит `title,date,startTime,location,type,description,capacity,demo,program[],requirements[]`; в выдачу добавляются `remaining` и `activities[]`. `remaining` пересчитывается сервером. Дата/время события интерпретируются в UTC+3; аудитория/публикация проверяются и при чтении, и при записи/сканировании.
 
 ### 4.4. Reward
 
@@ -231,7 +235,7 @@ UI-словарь также содержит legacy/совместимые по
 
 ### 6.1. Что можно редактировать и что вычисляется
 
-«Поля будущего редактора» в этой таблице — требования к отдельной админке. Сейчас их изменяют только поддерживаемые пользовательские/HR-действия либо исходный код; новых CRUD API нет.
+«Поля будущего редактора» в этой таблице — требования к отдельной админке. Пользовательские/HR-действия и source edit уже существуют; backend CRUD материалов/мероприятий и upload медиа реализованы отдельно от будущего административного интерфейса (раздел 13).
 
 | Сущность | Поля будущего редактора / допустимая операция | Защищённые или вычисляемые поля |
 |---|---|---|
@@ -252,13 +256,16 @@ UI-словарь также содержит legacy/совместимые по
 
 ## 7. Что существующая админка действительно умеет
 
-У существующего HR API ровно три операции:
+Защищённый backend принимает отдельный HR-ключ. Реализованы:
 
-1. `GET /api/admin/applications` — список откликов с snapshot-профилем, userId и текущим статусом.
-2. `PATCH /api/admin/applications/:id` — изменение на один из пяти действующих серверных статусов.
-3. `GET /api/admin/analytics` — агрегированные количества по именам событий, число заполненных профилей и число откликов.
+- отклики: список со snapshot-профилем и реферальной отметкой, изменение одного из пяти статусов;
+- агрегированная аналитика событий, профилей и откликов;
+- материалы: список/чтение, создание/обновление с тестом и новой immutable-версией, архивирование;
+- медиа: raw upload, список metadata, защищённое чтение бинарного файла;
+- мероприятия: список/чтение, создание/обновление, снятие с публикации;
+- рефералка: подтверждение фактического найма, список прав на мерч и подтверждение выдачи.
 
-Доступ — отдельный HR-ключ. UI кабинета работает с откликами; наличие серверного агрегата аналитики не означает наличие отдельной полноценной BI-панели. RBAC, каталожный CRUD, организаторские операции, создание уровней и скачивание QR отсутствуют.
+Точные endpoints и операции описаны в разделах 13–14 и машиночитаемом списке `implementedAdminOperations`. Отдельный полноценный frontend конструктора/управления материалами, медиа, мероприятиями и мерчем ещё не реализован. Staff-роли не дают эти права. Административный RBAC и управление игровым/карьерным/наградным каталогом остаются будущей работой. `/api/admin/event-activities` по-прежнему отсутствует: создание активностей и выдача QR организатором не добавлены.
 
 Пользовательские API предоставляют собственный bootstrap/profile/ledger, сохранение draft и завершение задания, отправку отклика, запись/отмену мероприятия, обмен награды, сканирование активности и logout. Эти действия не являются административным доступом к чужим данным. Публичный `/api/catalog` не содержит персональных анкет, session hashes или QR-токенов.
 
@@ -341,7 +348,7 @@ Task.presentation?: {
 |---|---|---|
 | Карьера | Создавать/редактировать/архивировать предложения, условия и связи с направлениями | Стабильный offer ID и snapshots уже отправленных откликов |
 | HR | Фильтровать отклики, назначать ответственного, фиксировать ответ/историю статусов, согласованные экспорты | Отдельность профиля и отклика, доступ к персональным данным по роли |
-| Мероприятия | Управлять программой, датой/местом, лимитом, регистрациями/отменами | История записи, запрет переполнения, отсутствие зависимости от игровых баллов |
+| Мероприятия | Отдельный интерфейс к уже реализованному backend CRUD программы/даты/места/лимита/аудитории; управление регистрациями — спроектировать | История записи, запрет переполнения, отсутствие зависимости от игровых баллов |
 | Активности / будущая отдельная админка организатора | Определять активности, включать/выключать, выдавать/печатать QR, видеть выполнения | Стабильный приватный QR, однократные начисления, исторические awardedPoints; сейчас этих операций нет |
 | Награды | Управлять каталогом/запасами/ценами и отдельным процессом выдачи | Исторические списания, недопустимость отрицательного остатка и дублирования обменов |
 | Игры / v5 | Управлять семействами, уровнями, assets, модулями, scenes, RuleSet и версиями | Серверная проверка, решаемость, неизменные award keys и совместимость старого прогресса |
@@ -349,7 +356,7 @@ Task.presentation?: {
 | Пользователи / данные | Просмотр в пределах полномочий, исправление, процедура удаления/обезличивания и отзывов согласия | Текущий профиль, snapshots откликов и связанные данные рассматриваются совместно |
 | Баллы | Просмотр ledger и обоснованные компенсирующие операции | Не заменять историю и вычисленный баланс произвольным числом |
 | Аналитика | Фильтры/агрегации/периоды и корректные метрики воронки | Отличать повторные события от уникальных действий и не ранжировать кандидатов по баллам |
-| Доступ | RBAC, отдельные роли HR/организатора/редактора/техадмина и журнал изменений | Существуют HR-ключ и две пользовательские staff-роли; административный RBAC и полный аудит изменений ещё не реализованы |
+| Доступ | RBAC, отдельные роли HR/организатора/редактора/техадмина и журнал изменений | Существуют HR-ключ и три пользовательские staff-роли; административный RBAC и полный аудит изменений ещё не реализованы |
 
 Для будущей реализации нужны решения о хранении каталожного контента, versioning, статусной истории, журнале согласий, soft archive и неизменяемых ссылках. Например, `activityCompletions.eventId` сейчас вычисляется через активность: перенос активности на другое мероприятие без snapshot/migration изменил бы исторический eventId. Это нужно решить до появления редактора, а не считать существующей гарантией.
 
@@ -367,7 +374,7 @@ FK перечислены явно; каскадных удалений нет. 
 
 | Сущность / таблица | Поля | Связи и ограничения |
 |---|---|---|
-| StaffAccount / `staff_credentials` | `user_id`, `login`, `password_hash`, `role`, `active` | PK/FK `user_id → users.id`; UQ `login`; CHECK role `intern/mentor`, active `0/1`. Логин нормализуется в lowercase/casefold. Хеш пароля не возвращается API |
+| StaffAccount / `staff_credentials` | `user_id`, `login`, `password_hash`, `role`, `active` | PK/FK `user_id → users.id`; UQ `login`; CHECK role `intern/mentor/employee`, active `0/1`. Логин нормализуется в lowercase/casefold. Хеш пароля не возвращается API |
 | StaffLoginAttempt / `staff_login_attempts` | `key`, `failures`, `updated` | PK `key` — SHA-256 от пары IP/логин; счётчик и Unix timestamp. Технические данные входа, не аналитика практиканта |
 | PracticeMigration / `practice_migrations` | `version`, `applied` | INTEGER PK `version`; служебная отметка миграции. Не пользовательская сущность и не редактор контента |
 | Mentor / `mentors` | `id`, `user_id`, `name`, `position`, `contact`, `about`, `office_hours` | UQ/FK `user_id → users.id`; один профиль наставника на пользователя, много назначенных практик |
@@ -411,7 +418,7 @@ FK перечислены явно; каскадных удалений нет. 
 
 Роль аккаунта определяет выбор кабинета. Сервер дополнительно проверяет владение/назначение конкретной практики; одна staff-роль без назначения не даёт доступ к чужим данным. После `assign_mentor` прежний наставник теряет доступ, старые отзывы сохраняются. Внутренние provisioning-функции проверяют существование пользователей/наставников, но не гарантируют соответствие всех назначений staff-ролям: административная интеграция должна обеспечивать согласованность ролей, аккаунтов и назначений.
 
-Staff-пароль хранится как PBKDF2-SHA256, случайная соль, 600 000 итераций. В существующей `sessions` хранится хеш bearer, срок staff-сессии — 12 часов; inactive аккаунт сразу теряет доступ к practice endpoints. После восьми неверных попыток для IP/логина — ограничение 15 минут. Эти роли не дают доступ к HR/админке. Пароли, хеши, сессии и файл выданных данных не должны попадать в контентные экспорты админки.
+Staff-пароль хранится как PBKDF2-SHA256, случайная соль, 600 000 итераций. В существующей `sessions` хранится хеш bearer, срок staff-сессии — 12 часов; inactive аккаунт сразу теряет доступ к practice endpoints. После восьми неверных попыток для IP/логина — ограничение 15 минут. Эти роли не дают доступ к HR/админке. Роль `employee` открывает общий внутренний раздел без автоматического назначения практики или наставничества; реферальный код предназначен только `intern` с назначением. Пароли, хеши, сессии и файл выданных данных не должны попадать в контентные экспорты админки.
 
 ### 12.4. План отдельной админки
 
@@ -424,3 +431,74 @@ Staff-пароль хранится как PBKDF2-SHA256, случайная с�
 7. **Архивирование и удаление:** учесть все FK, отзывы с историческим автором, сессии и вложенные JSON; каскадов и готового административного удаления нет. Новые таблицы MentorAssignmentHistory, AdministrativeAudit и отдельная версия документа — предложения, а не уже существующие сущности.
 
 Контракт пользовательских endpoints и внутренних функций описан в [practice.md](practice.md). Публичных endpoints выдачи аккаунтов, назначения практик и наставников не добавлено.
+
+
+## 13. Материалы, медиа и мероприятия — implemented backend
+
+### 13.1. Шесть новых таблиц контента
+
+| Сущность / таблица | Поля SQL | Связи, ограничения и API |
+|---|---|---|
+| CareerEventDefinition / `career_events` | `id,definition,audience,published` | PK id; definition JSON; CHECK audience candidate/staff/all, published 0/1. Регистрации и активности ссылаются на id логически, FK в их старых таблицах не добавлены |
+| Material / `materials` | `id,title,description,category,audience,published,archived,blocks,points,version,demo,created_at,updated_at` | PK id; blocks JSON; CHECK category company/video/practice/stories, audience candidate/staff/all, booleans published/archived, points 0–1000. API createdAt/updatedAt, decoded blocks |
+| MaterialVersion / `material_versions` | `material_id,version,snapshot,created_at` | PK `(material_id,version)`, FK material_id → materials.id. Immutable snapshot полного определения, включая приватный тест; не выдаётся audience API |
+| MaterialQuestion / `material_questions` | `material_id,version,id,position,text,options,correct_option_id,explanation` | PK `(material_id,version,id)`, UQ `(material_id,version,position)`, FK material_id → materials.id. Версия логически связана с material_versions, составного SQL FK нет. options — JSON; correctOptionId только admin, explanation — admin и обратная связь после успешного прохождения |
+| MaterialCompletion / `material_completions` | `user_id,material_id,version,completed_at,awarded_points` | PK `(user_id,material_id)`, FK users/materials. Первый completed version и awardedPoints сохраняются; новая версия не выдаёт награду повторно. API materialId/completedAt/awardedPoints |
+| MediaAsset / `material_media` | `id,filename,mime_type,audience,size,content,created` | PK id; CHECK audience, size>0; content BLOB. API mimeType; metadata не содержит content. mediaId в blocks — логическая ссылка с серверной проверкой |
+
+Блоки материала: `heading/text {type,text}`, `image {type,mediaId,alt}`, `video {type,mediaId,title}`. Произвольный URL, HTML или исполняемый код в блоках не принимаются. Quiz: `{points,questions:[{id,text,options:[{id,text}],correctOptionId,explanation}]}`. Корректные ответы скрыты из пользовательских GET; сервер сам проверяет все ответы.
+
+Каждая запись определения добавляет новую `material_versions` и вопросы этой версии; старые snapshots не перезаписываются. Completion привязан к материалу, а не оплачиваемой версии: сумма и версия первого выполнения исторические. Тест без всех правильных ответов не начисляет баллы. Canonical `ochakovo-history` использует прежний award key `task:history-1` и синхронизирует старый маршрут, предотвращая повторное начисление за историю. Этот материал должен оставаться all/published, с тестом на 30 баллов; его архивирование запрещено.
+
+### 13.2. Аудитории и права
+
+- `candidate` — кандидат с собственной сессией; видит candidate/all опубликованный контент. Прохождение теста требует взрослый сохранённый профиль.
+- `staff` — активный выданный `intern`, `mentor` или `employee`; видит staff/all. Внутренние события, их записи и активности не требуют повторного заполнения кандидатской анкеты.
+- `all` — обе аудитории. Наличие роли intern не открывает candidate-only контент автоматически.
+- Отозванный или удалённый staff-аккаунт не становится кандидатом при использовании старой сессии.
+- Медиа читается только по аутентифицированному запросу и при ссылке из опубликованного неархивного материала доступной аудитории. Угаданный ID не открывает draft-файл; admin-ключ предоставляет отдельное чтение.
+
+Событие имеет persisted definition, audience и publication. До наличия участников аудиторию можно изменить; после регистраций или выполнений активностей backend запрещает смену audience с `409 audience_locked`. DELETE снимает публикацию, не удаляя определения/историю. `remaining` продолжает считать registered-строки; скан активности не занимает место и не требует предварительной записи. QR и баллы активности остаются серверными, прежние completion/ledger сохраняются.
+
+### 13.3. Реализованные административные endpoints
+
+| Область | Backend операции |
+|---|---|
+| Материалы | `GET/POST /api/admin/materials`; `GET/PUT/PATCH /api/admin/materials/:id`; `POST /api/admin/materials/:id/archive` |
+| Медиа | `GET/POST /api/admin/media`; `GET /api/admin/media/:id`. POST принимает raw bytes с Content-Type, X-File-Name, X-Media-Audience |
+| Мероприятия | `GET/POST /api/admin/events`; `GET/PUT/PATCH/DELETE /api/admin/events/:id` |
+
+Все эти операции защищены HR-ключом; пользовательская staff-сессия его не заменяет. Загрузка ограничена 50 MiB, разрешены PNG/JPEG/WebP/MP4/WebM с проверкой сигнатуры и аудитории. Материал принимает только существующие mediaId с совместимой аудиторией. Физическое удаление файлов, конвертация/транскодирование и frontend файлового менеджера не реализованы.
+
+### 13.4. Отдельный конструктор тестов материалов — proposed frontend
+
+Это обязательный модуль будущей админки поверх уже реализованного backend; самостоятельного интерфейса конструктора сейчас нет.
+
+| Экран / модуль | Операции | Проверки и сохраняемый результат |
+|---|---|---|
+| Список материалов | Фильтр category/audience/publication/archive, открытие/создание | Разделять опубликованный контент и черновик; отображать актуальную version |
+| Редактор материала | Заголовок/описание, добавление и порядок text/heading/image/video блоков, выбор загруженного медиа | 1–40 блоков; text ≤10000, heading ≤300, title ≤200, description ≤1000; alt обязателен для image; mediaId существует и совместим с audience |
+| Конструктор вопросов | Добавить/удалить/переставить вопрос, редактировать варианты | 1–10 вопросов; 2–6 вариантов каждый; уникальные устойчивые IDs; text вопроса ≤2000, варианта ≤1000 |
+| Правильный ответ и пояснение | Выбрать ровно один correctOptionId, написать explanation | Ответ относится к варианту этого вопроса; explanation ≤3000; приватные ответы не попадают в audience DTO |
+| Настройка награды | Указать целое points за весь тест | 1–1000; баллы задаёт серверная definition, а не решение клиента; новый version не сбрасывает completion |
+| Preview | Просмотреть материал и тест от candidate/staff без подсказки correct | Тот же пользовательский renderer и запрет недоступных медиа; отдельного preview endpoint/админ-экрана пока нет |
+| Публикация / версии | Выбрать audience, сохранить новую immutable-версию, publish/unpublish/archive, сравнить версии | expectedVersion защищает от устаревшего сохранения, когда передан; snapshots/questions/completions сохраняются. Полноценные staging/review и экран сравнения — будущие функции |
+| Результаты | Просмотр разрешённых completion/award агрегатов | Одна награда на user/material; показывать исторические version/awardedPoints; не обнулять результаты редактированием теста |
+
+Обязательные действия администратора: проверить вопросы и правильные ответы, preview каждой выбранной аудитории, проверить локальные медиа, подтвердить points и публикацию. Backend уже ограничивает структуру; workflow согласования, полнота именного аудита и роли автора/ревьюера ещё требуют реализации.
+
+## 14. Реферальные приглашения и мерч — implemented
+
+| Сущность / таблица | Поля | Связи и неизменяемость |
+|---|---|---|
+| ReferralCode / `referral_codes` | `code,user_id,active,created` | PK code; UQ/FK user_id → users.id; active 0/1. Один стабильный криптографически выбранный OC-код на активного intern с non-cancelled назначением практики |
+| ApplicationReferral / `application_referrals` | `application_id,code,referrer_user_id,referrer_name,created` | PK/FK application_id → applications.id; FK code → referral_codes.code, referrer_user_id → users.id. Исторический снимок кода/имени/ID, неизменяемый при повторной подаче |
+| ReferralMerchReward / `referral_merch_rewards` | `id,application_id,hired_candidate_user_id,referrer_user_id,referrer_name,referral_code,status,hired_at,hired_by,issued_at,issued_by` | PK id; UQ/FK application_id → application_referrals.application_id; UQ/FK hired_candidate_user_id → users.id; FK referrer_user_id → users.id. Один мерч за первое подтверждённое трудоустройство человека, не за каждую его заявку |
+
+Кандидат вводит код при новой подаче; HR получает подсветку резюме/отклика. Разные заявки могут иметь разных пригласивших, но **первый подтверждённый найм кандидата фиксирует единственное право на мерч и его получателя**. Подтверждение другой заявки этого же человека возвращает `409 referral_hire_already_confirmed`; повтор той же заявки идемпотентен. Статус accepted не считается подтверждённым трудоустройством и мерч не создаёт.
+
+Невалидный/неизвестный/отключённый/собственный код возвращает 422 и откатывает весь новый отклик. Повтор не добавляет и не меняет первоначальный код, включая исходный отклик без кода. Выдача кодов, их использование и статистика не раскрывают кандидату личность пригласившего: кандидатская referral DTO содержит только `{code}`. HR получает referrerUserId/referrerName из snapshot. Кабинет практиканта показывает только applications/merchPending/merchIssued, без данных кандидатов.
+
+Мерч имеет `pending/issued`; hiredAt/hiredBy и issuedAt/issuedBy — серверные отметки. Уникальность кандидата и заявки защищает от дублей, в том числе при конкуренции. Изменение имени, деактивация кода или аккаунта после подачи не переписывают снимок и историческое право. Это отдельный процесс, без ledger-начисления баллов и без придуманного SKU/доставки.
+
+Backend: `GET /api/referrals/me`; новый POST applications принимает `referralCode?`. За HR-ключом — `POST /api/admin/applications/:id/hire`, `GET /api/admin/referral-rewards`, `PATCH /api/admin/referral-rewards/:id {status:'issued'}`. Полноценная отдельная админка рефералки/выдачи, коррекция ошибочного найма, склад мерча и именные роли администратора — proposed. Подробный контракт — [referrals.md](referrals.md).

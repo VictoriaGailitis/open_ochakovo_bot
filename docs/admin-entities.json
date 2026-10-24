@@ -18,17 +18,29 @@
     "server/staff_auth.py",
     "server/staff_accounts.py",
     "src/practice/types.ts",
-    "src/practice/utils.ts"
+    "src/practice/utils.ts",
+    "server/referrals.py",
+    "server/learning.py",
+    "server/community.py",
+    "server/media.py",
+    "src/referrals/types.ts"
   ],
   "scope": {
     "databaseSchemaOnly": true,
     "includesUserData": false,
-    "adminImplementationIncluded": false,
     "v5ContractStatus": "implemented_runtime_schema_1",
-    "practiceContractStatus": "implemented_assigned_intern_and_mentor"
+    "practiceContractStatus": "implemented_assigned_intern_and_mentor_plus_employee_community",
+    "adminBackendCapabilitiesDocumented": true,
+    "staffRoles": [
+      "intern",
+      "mentor",
+      "employee"
+    ],
+    "separateAdminFrontendImplemented": false,
+    "existingHrFrontendImplemented": true
   },
   "database": {
-    "tableCount": 22,
+    "tableCount": 31,
     "foreignKeysEnabled": true,
     "cascadeDeletes": false,
     "entities": [
@@ -77,7 +89,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE users (id TEXT PRIMARY KEY, profile TEXT)"
       },
       {
         "id": "Session",
@@ -147,7 +160,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE sessions (token TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), expires REAL)"
       },
       {
         "id": "TaskProgress",
@@ -238,7 +252,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE progress (user_id TEXT REFERENCES users(id), task TEXT, draft TEXT DEFAULT '{}', completed TEXT, draft_revision INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user_id,task))"
       },
       {
         "id": "PointsEntry",
@@ -345,7 +360,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE ledger (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), reason TEXT, delta INTEGER, created TEXT, UNIQUE(user_id,reason))"
       },
       {
         "id": "CareerApplication",
@@ -459,7 +475,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE applications (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), offer TEXT, profile TEXT, status TEXT, created TEXT, UNIQUE(user_id,offer))"
       },
       {
         "id": "EventRegistration",
@@ -570,7 +587,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE registrations (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), event TEXT, status TEXT, created TEXT, UNIQUE(user_id,event))"
       },
       {
         "id": "RewardExchange",
@@ -668,7 +686,8 @@
             ]
           }
         ],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE exchanges (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), reward TEXT, created TEXT, UNIQUE(user_id,reward))"
       },
       {
         "id": "AnalyticsEvent",
@@ -737,7 +756,8 @@
           }
         ],
         "indexes": [],
-        "checks": []
+        "checks": [],
+        "sqlDefinition": "CREATE TABLE analytics (id INTEGER PRIMARY KEY, user_id TEXT REFERENCES users(id), event TEXT, created TEXT)"
       },
       {
         "id": "EventActivity",
@@ -861,7 +881,8 @@
         "checks": [
           "points BETWEEN 1 AND 1000",
           "active IN (0,1)"
-        ]
+        ],
+        "sqlDefinition": "CREATE TABLE event_activities (\n                id TEXT PRIMARY KEY, event_id TEXT NOT NULL, title TEXT NOT NULL,\n                description TEXT NOT NULL, points INTEGER NOT NULL CHECK(points BETWEEN 1 AND 1000),\n                active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), qr_token TEXT NOT NULL UNIQUE\n            )"
       },
       {
         "id": "ActivityCompletion",
@@ -959,154 +980,8 @@
         ],
         "checks": [
           "awarded_points BETWEEN 1 AND 1000"
-        ]
-      },
-      {
-        "id": "StaffAccount",
-        "table": "staff_credentials",
-        "status": "implemented",
-        "storage": "sqlite",
-        "description": "manually provisioned staff identity and active flag",
-        "currentWriteCapability": "provision_account internally; password login; no public registration",
-        "fields": [
-          {
-            "sqlName": "user_id",
-            "sqlType": "TEXT",
-            "notNullDeclared": false,
-            "primaryKeyOrder": 1,
-            "defaultSql": null,
-            "apiNames": [],
-            "privateSecret": false,
-            "personalOrUserLinked": true
-          },
-          {
-            "sqlName": "login",
-            "sqlType": "TEXT",
-            "notNullDeclared": true,
-            "primaryKeyOrder": 0,
-            "defaultSql": null,
-            "apiNames": [],
-            "privateSecret": false,
-            "personalOrUserLinked": true
-          },
-          {
-            "sqlName": "password_hash",
-            "sqlType": "TEXT",
-            "notNullDeclared": true,
-            "primaryKeyOrder": 0,
-            "defaultSql": null,
-            "apiNames": [],
-            "privateSecret": true,
-            "personalOrUserLinked": true
-          },
-          {
-            "sqlName": "role",
-            "sqlType": "TEXT",
-            "notNullDeclared": true,
-            "primaryKeyOrder": 0,
-            "defaultSql": null,
-            "apiNames": [],
-            "privateSecret": false,
-            "personalOrUserLinked": true
-          },
-          {
-            "sqlName": "active",
-            "sqlType": "INTEGER",
-            "notNullDeclared": true,
-            "primaryKeyOrder": 0,
-            "defaultSql": "1",
-            "apiNames": [],
-            "privateSecret": false,
-            "personalOrUserLinked": true
-          }
         ],
-        "foreignKeys": [
-          {
-            "field": "user_id",
-            "references": {
-              "table": "users",
-              "field": "id"
-            },
-            "onDelete": "NO ACTION",
-            "onUpdate": "NO ACTION"
-          }
-        ],
-        "indexes": [
-          {
-            "name": "sqlite_autoindex_staff_credentials_2",
-            "unique": true,
-            "origin": "u",
-            "fields": [
-              "login"
-            ]
-          },
-          {
-            "name": "sqlite_autoindex_staff_credentials_1",
-            "unique": true,
-            "origin": "pk",
-            "fields": [
-              "user_id"
-            ]
-          }
-        ],
-        "checks": [
-          "role IN ('intern','mentor')",
-          "active IN (0,1)"
-        ],
-        "technical": false
-      },
-      {
-        "id": "StaffLoginAttempt",
-        "table": "staff_login_attempts",
-        "status": "implemented",
-        "storage": "sqlite",
-        "description": "hashed IP/login throttle, not practice analytics",
-        "currentWriteCapability": "authentication service only",
-        "fields": [
-          {
-            "sqlName": "key",
-            "sqlType": "TEXT",
-            "notNullDeclared": false,
-            "primaryKeyOrder": 1,
-            "defaultSql": null,
-            "apiNames": [],
-            "privateSecret": true,
-            "personalOrUserLinked": true
-          },
-          {
-            "sqlName": "failures",
-            "sqlType": "INTEGER",
-            "notNullDeclared": true,
-            "primaryKeyOrder": 0,
-            "defaultSql": "0",
-            "apiNames": [],
-            "privateSecret": false,
-            "personalOrUserLinked": true
-          },
-          {
-            "sqlName": "updated",
-            "sqlType": "REAL",
-            "notNullDeclared": true,
-            "primaryKeyOrder": 0,
-            "defaultSql": null,
-            "apiNames": [],
-            "privateSecret": false,
-            "personalOrUserLinked": true
-          }
-        ],
-        "foreignKeys": [],
-        "indexes": [
-          {
-            "name": "sqlite_autoindex_staff_login_attempts_1",
-            "unique": true,
-            "origin": "pk",
-            "fields": [
-              "key"
-            ]
-          }
-        ],
-        "checks": [],
-        "technical": true
+        "sqlDefinition": "CREATE TABLE activity_completions (\n                user_id TEXT NOT NULL REFERENCES users(id),\n                activity_id TEXT NOT NULL REFERENCES event_activities(id),\n                completed_at TEXT NOT NULL, awarded_points INTEGER NOT NULL CHECK(awarded_points BETWEEN 1 AND 1000),\n                PRIMARY KEY(user_id,activity_id)\n            )"
       },
       {
         "id": "PracticeMigration",
@@ -1140,7 +1015,8 @@
         "foreignKeys": [],
         "indexes": [],
         "checks": [],
-        "technical": true
+        "technical": true,
+        "sqlDefinition": "CREATE TABLE practice_migrations (version INTEGER PRIMARY KEY, applied TEXT NOT NULL)"
       },
       {
         "id": "Mentor",
@@ -1263,7 +1139,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE mentors (\n id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n name TEXT NOT NULL, position TEXT NOT NULL, contact TEXT NOT NULL,\n about TEXT NOT NULL DEFAULT '', office_hours TEXT NOT NULL DEFAULT ''\n)"
       },
       {
         "id": "PracticePlacement",
@@ -1479,7 +1356,8 @@
           "status IN ('scheduled','active','completed','cancelled')",
           "start_date <= end_date"
         ],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practices (\n id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), mentor_id TEXT REFERENCES mentors(id),\n title TEXT NOT NULL, department TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL,\n status TEXT NOT NULL CHECK(status IN ('scheduled','active','completed','cancelled')),\n coordinator TEXT NOT NULL DEFAULT '{}', arrival TEXT NOT NULL DEFAULT '',\n onboarding TEXT NOT NULL DEFAULT '[]', documents TEXT NOT NULL DEFAULT '[]', created TEXT NOT NULL,\n CHECK(start_date <= end_date)\n)"
       },
       {
         "id": "PracticeGoal",
@@ -1637,7 +1515,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_goals (\n id TEXT PRIMARY KEY, practice_id TEXT NOT NULL REFERENCES practices(id), title TEXT NOT NULL,\n description TEXT NOT NULL, criteria TEXT NOT NULL, due_date TEXT NOT NULL,\n status TEXT NOT NULL DEFAULT 'planned', mentor_comment TEXT NOT NULL DEFAULT '',\n version INTEGER NOT NULL DEFAULT 1, client_key TEXT NOT NULL,\n UNIQUE(practice_id,client_key)\n)"
       },
       {
         "id": "PracticeMeeting",
@@ -1795,7 +1674,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_meetings (\n id TEXT PRIMARY KEY, practice_id TEXT NOT NULL REFERENCES practices(id), title TEXT NOT NULL,\n starts_at TEXT NOT NULL, ends_at TEXT NOT NULL, location TEXT NOT NULL, agenda TEXT NOT NULL,\n status TEXT NOT NULL DEFAULT 'scheduled', version INTEGER NOT NULL DEFAULT 1,\n client_key TEXT NOT NULL, UNIQUE(practice_id,client_key)\n)"
       },
       {
         "id": "PracticeFeedback",
@@ -1926,7 +1806,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_feedback (\n id TEXT PRIMARY KEY, practice_id TEXT NOT NULL REFERENCES practices(id), mentor_id TEXT NOT NULL REFERENCES mentors(id),\n author_name TEXT NOT NULL, body TEXT NOT NULL, created TEXT NOT NULL, client_key TEXT NOT NULL,\n UNIQUE(practice_id,client_key)\n)"
       },
       {
         "id": "PracticeCheckin",
@@ -2026,7 +1907,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_checkins (\n id TEXT PRIMARY KEY, practice_id TEXT NOT NULL REFERENCES practices(id), week TEXT NOT NULL,\n answers TEXT NOT NULL, created TEXT NOT NULL, UNIQUE(practice_id,week)\n)"
       },
       {
         "id": "PracticeRequest",
@@ -2184,7 +2066,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_requests (\n id TEXT PRIMARY KEY, practice_id TEXT NOT NULL REFERENCES practices(id), target TEXT NOT NULL,\n topic TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'received',\n response TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,\n client_key TEXT NOT NULL, UNIQUE(practice_id,client_key)\n)"
       },
       {
         "id": "PracticeCareerPreference",
@@ -2287,7 +2170,8 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_career (\n practice_id TEXT PRIMARY KEY REFERENCES practices(id), interested INTEGER NOT NULL,\n direction TEXT NOT NULL, schedule TEXT NOT NULL, comment TEXT NOT NULL, created TEXT NOT NULL\n)"
       },
       {
         "id": "PracticeActivity",
@@ -2379,9 +2263,1281 @@
           }
         ],
         "checks": [],
-        "technical": false
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE practice_activity (\n id TEXT PRIMARY KEY, practice_id TEXT NOT NULL REFERENCES practices(id), actor_id TEXT NOT NULL REFERENCES users(id),\n event TEXT NOT NULL, created TEXT NOT NULL\n)"
+      },
+      {
+        "id": "StaffAccount",
+        "table": "staff_credentials",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "manually provisioned staff identity and active flag",
+        "currentWriteCapability": "provision_account internally; password login; no public registration",
+        "fields": [
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "login",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "password_hash",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": true,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "role",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "active",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_staff_credentials_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "login"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_staff_credentials_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "user_id"
+            ]
+          }
+        ],
+        "checks": [
+          "role IN ('intern','mentor','employee')",
+          "active IN (0,1)"
+        ],
+        "technical": false,
+        "sqlDefinition": "CREATE TABLE staff_credentials (\n user_id TEXT PRIMARY KEY REFERENCES users(id), login TEXT NOT NULL UNIQUE,\n password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('intern','mentor','employee')),\n active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))\n)"
+      },
+      {
+        "id": "StaffLoginAttempt",
+        "table": "staff_login_attempts",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "hashed IP/login throttle, not practice analytics",
+        "currentWriteCapability": "authentication service only",
+        "fields": [
+          {
+            "sqlName": "key",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": true,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "failures",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "updated",
+            "sqlType": "REAL",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_staff_login_attempts_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "key"
+            ]
+          }
+        ],
+        "checks": [],
+        "technical": true,
+        "sqlDefinition": "CREATE TABLE staff_login_attempts (\n key TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0, updated REAL NOT NULL\n)"
+      },
+      {
+        "id": "Material",
+        "table": "materials",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "current material definition, blocks, publication and version",
+        "currentWriteCapability": "protected admin create/update/archive",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "title",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "title"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "description",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "description"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "category",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "category"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "audience",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "audience"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "published",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [
+              "published boolean"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "archived",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [
+              "archived (admin boolean)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "blocks",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "blocks (JSON decoded)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "points",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [
+              "points"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [
+              "version"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "demo",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [
+              "demo boolean"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "createdAt (admin)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "updated_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "updatedAt"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "idx_materials_visibility",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "published",
+              "archived",
+              "audience",
+              "category"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_materials_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE materials (\n id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,\n category TEXT NOT NULL CHECK(category IN ('company','video','practice','stories')),\n audience TEXT NOT NULL CHECK(audience IN ('candidate','staff','all')),\n published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),\n archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1)),\n blocks TEXT NOT NULL, points INTEGER NOT NULL DEFAULT 0 CHECK(points BETWEEN 0 AND 1000),\n version INTEGER NOT NULL DEFAULT 1, demo INTEGER NOT NULL DEFAULT 0,\n created_at TEXT NOT NULL, updated_at TEXT NOT NULL\n)",
+        "checks": [
+          "category IN ('company','video','practice','stories')",
+          "audience IN ('candidate','staff','all')",
+          "published IN (0,1)",
+          "archived IN (0,1)",
+          "points BETWEEN 0 AND 1000"
+        ]
+      },
+      {
+        "id": "MaterialVersion",
+        "table": "material_versions",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "immutable full definition snapshot including private quiz",
+        "currentWriteCapability": "server inserts new snapshot on each definition write",
+        "fields": [
+          {
+            "sqlName": "material_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "admin internal materialId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 2,
+            "defaultSql": null,
+            "apiNames": [
+              "version"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "snapshot",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": false,
+            "visibility": "admin/private assessment only"
+          },
+          {
+            "sqlName": "created_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "admin internal createdAt"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "material_id",
+            "references": {
+              "table": "materials",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_material_versions_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "material_id",
+              "version"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE material_versions (\n material_id TEXT NOT NULL REFERENCES materials(id), version INTEGER NOT NULL,\n snapshot TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(material_id,version)\n)",
+        "checks": []
+      },
+      {
+        "id": "MaterialQuestion",
+        "table": "material_questions",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "versioned questions, options and private correct answer",
+        "currentWriteCapability": "protected material definition writes only",
+        "fields": [
+          {
+            "sqlName": "material_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 2,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 3,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "position",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "quiz.questions order"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "text",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "text"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "options",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "options (JSON decoded)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "correct_option_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "correctOptionId (admin only)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false,
+            "visibility": "admin/private assessment only"
+          },
+          {
+            "sqlName": "explanation",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "explanation (admin; after successful completion)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "material_id",
+            "references": {
+              "table": "materials",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_material_questions_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "material_id",
+              "version",
+              "position"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_material_questions_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "material_id",
+              "version",
+              "id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE material_questions (\n material_id TEXT NOT NULL REFERENCES materials(id), version INTEGER NOT NULL,\n id TEXT NOT NULL, position INTEGER NOT NULL, text TEXT NOT NULL, options TEXT NOT NULL,\n correct_option_id TEXT NOT NULL, explanation TEXT NOT NULL,\n PRIMARY KEY(material_id,version,id), UNIQUE(material_id,version,position)\n)",
+        "checks": []
+      },
+      {
+        "id": "MaterialCompletion",
+        "table": "material_completions",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "one first completion per user/material and historical award",
+        "currentWriteCapability": "server validates answers and awards once transactionally",
+        "fields": [
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "material_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 2,
+            "defaultSql": null,
+            "apiNames": [
+              "materialId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "version",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "version"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "completed_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "completedAt"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "awarded_points",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "awardedPoints"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "material_id",
+            "references": {
+              "table": "materials",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_material_completions_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "user_id",
+              "material_id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE material_completions (\n user_id TEXT NOT NULL REFERENCES users(id), material_id TEXT NOT NULL REFERENCES materials(id),\n version INTEGER NOT NULL, completed_at TEXT NOT NULL, awarded_points INTEGER NOT NULL,\n PRIMARY KEY(user_id,material_id)\n)",
+        "checks": []
+      },
+      {
+        "id": "ReferralCode",
+        "table": "referral_codes",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "stable shareable intern invitation code",
+        "currentWriteCapability": "eligible intern self generation; no code-management endpoint",
+        "fields": [
+          {
+            "sqlName": "code",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "code"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "active",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [
+              "active"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_referral_codes_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "user_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_referral_codes_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "code"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE referral_codes (\n code TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), created TEXT NOT NULL\n)",
+        "checks": [
+          "active IN (0,1)"
+        ]
+      },
+      {
+        "id": "ApplicationReferral",
+        "table": "application_referrals",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "immutable per-application invitation/name/referrer snapshot",
+        "currentWriteCapability": "only initial application INSERT transaction",
+        "fields": [
+          {
+            "sqlName": "application_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "application.referral relation"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "code",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "code"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "referrer_user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "referrerUserId (HR only)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "referrer_name",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "referrerName (HR only)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "referrer_user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "code",
+            "references": {
+              "table": "referral_codes",
+              "field": "code"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "application_id",
+            "references": {
+              "table": "applications",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_application_referrals_referrer",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "referrer_user_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_application_referrals_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "application_id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE application_referrals (\n application_id TEXT PRIMARY KEY REFERENCES applications(id),\n code TEXT NOT NULL REFERENCES referral_codes(code),\n referrer_user_id TEXT NOT NULL REFERENCES users(id),\n referrer_name TEXT NOT NULL, created TEXT NOT NULL\n)",
+        "checks": []
+      },
+      {
+        "id": "ReferralMerchReward",
+        "table": "referral_merch_rewards",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "one merch entitlement per explicitly hired candidate",
+        "currentWriteCapability": "protected explicit hire confirmation and issue",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "application_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "applicationId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "hired_candidate_user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "hiredCandidateUserId (HR only)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "referrer_user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "referrerUserId (HR only)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "referrer_name",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "referrerName (HR only)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "referral_code",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "code"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'pending'",
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "hired_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "hiredAt"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "hired_by",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "hiredBy"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "issued_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "issuedAt"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "issued_by",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "issuedBy"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "referrer_user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "hired_candidate_user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "application_id",
+            "references": {
+              "table": "application_referrals",
+              "field": "application_id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_referral_merch_referrer",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "referrer_user_id",
+              "status"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_referral_merch_rewards_3",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "hired_candidate_user_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_referral_merch_rewards_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "application_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_referral_merch_rewards_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE referral_merch_rewards (\n id TEXT PRIMARY KEY, application_id TEXT NOT NULL UNIQUE REFERENCES application_referrals(application_id),\n hired_candidate_user_id TEXT NOT NULL UNIQUE REFERENCES users(id),\n referrer_user_id TEXT NOT NULL REFERENCES users(id), referrer_name TEXT NOT NULL,\n referral_code TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','issued')),\n hired_at TEXT NOT NULL, hired_by TEXT NOT NULL, issued_at TEXT, issued_by TEXT,\n CHECK((status='pending' AND issued_at IS NULL AND issued_by IS NULL)\n    OR (status='issued' AND issued_at IS NOT NULL AND issued_by IS NOT NULL))\n)",
+        "checks": [
+          "status IN ('pending','issued')",
+          "(status='pending' AND issued_at IS NULL AND issued_by IS NULL)\n    OR (status='issued' AND issued_at IS NOT NULL AND issued_by IS NOT NULL)"
+        ]
+      },
+      {
+        "id": "CareerEventDefinition",
+        "table": "career_events",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "persisted event definition and audience/publication",
+        "currentWriteCapability": "protected admin event CRUD",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "definition",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "event fields (JSON decoded)"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "audience",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "audience"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "published",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "published boolean"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_career_events_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE career_events (\n        id TEXT PRIMARY KEY, definition TEXT NOT NULL,\n        audience TEXT NOT NULL CHECK(audience IN ('candidate','staff','all')),\n        published INTEGER NOT NULL CHECK(published IN (0,1)))",
+        "checks": [
+          "audience IN ('candidate','staff','all')",
+          "published IN (0,1)"
+        ]
+      },
+      {
+        "id": "MediaAsset",
+        "table": "material_media",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "authenticated binary media with audience",
+        "currentWriteCapability": "protected raw upload; authenticated read",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "filename",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "filename"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "mime_type",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "mimeType"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "audience",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "audience"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "size",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "size"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "content",
+            "sqlType": "BLOB",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "authenticated binary response only"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false,
+            "visibility": "authenticated binary; never JSON inventory data"
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_material_media_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "sqlDefinition": "CREATE TABLE material_media (\n        id TEXT PRIMARY KEY, filename TEXT NOT NULL, mime_type TEXT NOT NULL,\n        audience TEXT NOT NULL CHECK(audience IN ('candidate','staff','all')),\n        size INTEGER NOT NULL CHECK(size>0), content BLOB NOT NULL, created TEXT NOT NULL)",
+        "checks": [
+          "audience IN ('candidate','staff','all')",
+          "size>0"
+        ]
       }
-    ]
+    ],
+    "verification": "fresh in-memory SQLite from source DDL only; no production database or rows read",
+    "rowDataIncluded": false
   },
   "profileJson": {
     "storage": [
@@ -2466,7 +3622,7 @@
     {
       "id": "CareerEvent",
       "status": "implemented",
-      "storage": "server/catalog.json",
+      "storage": "career_events definition JSON; catalog JSON used only as initial seed",
       "collection": "events",
       "definitionCount": 3,
       "fields": [
@@ -2483,11 +3639,12 @@
         "type"
       ],
       "identity": "id",
-      "currentWriteCapability": "source edit only; no admin CRUD",
+      "currentWriteCapability": "protected admin events CRUD/archive",
       "computedFields": [
         "remaining",
         "activities (runtime SQLite replaces seed definitions)"
-      ]
+      ],
+      "definitionCountSource": "seed definitions only, not a count of live rows"
     },
     {
       "id": "Reward",
@@ -2579,6 +3736,26 @@
     {
       "from": "tasks.presentation.scene.objects[].spriteId",
       "to": "SpriteAsset.id"
+    },
+    {
+      "from": "event_activities.event_id",
+      "to": "career_events.id",
+      "sqlForeignKey": false
+    },
+    {
+      "from": "registrations.event",
+      "to": "career_events.id",
+      "sqlForeignKey": false
+    },
+    {
+      "from": "material_questions.(material_id,version)",
+      "to": "material_versions.(material_id,version)",
+      "sqlForeignKey": false
+    },
+    {
+      "from": "materials.blocks[].mediaId",
+      "to": "material_media.id",
+      "sqlForeignKey": false
     }
   ],
   "statusEnums": {
@@ -2598,7 +3775,8 @@
     "exchange": "presence of row only",
     "staffRole": [
       "intern",
-      "mentor"
+      "mentor",
+      "employee"
     ],
     "practice": [
       "scheduled",
@@ -2631,6 +3809,15 @@
       "documents",
       "safety",
       "team"
+    ],
+    "audience": [
+      "candidate",
+      "staff",
+      "all"
+    ],
+    "referralMerch": [
+      "pending",
+      "issued"
     ]
   },
   "computedFields": {
@@ -2648,27 +3835,86 @@
       "history-1"
     ],
     "pointsAwarded": "transactional first award; repeat 0",
-    "activityCompletions.awardedPoints": "stored historical award snapshot"
+    "activityCompletions.awardedPoints": "stored historical award snapshot",
+    "referral.stats.applications": "COUNT application_referrals for referrer",
+    "referral.stats.merchPending": "COUNT referral_merch_rewards status pending for referrer",
+    "referral.stats.merchIssued": "COUNT referral_merch_rewards status issued for referrer",
+    "material.questionCount": "questions for current material version",
+    "material.completion": "own first material_completions row; historical version/points retained"
   },
   "implementedAdminOperations": [
     {
       "method": "GET",
       "path": "/api/admin/applications",
-      "purpose": "read applications with profile snapshots"
+      "purpose": "applications with profile and private referral snapshots"
     },
     {
       "method": "PATCH",
       "path": "/api/admin/applications/:id",
-      "purpose": "update allowed application status"
+      "purpose": "application status only; accepted does not confirm hire"
     },
     {
       "method": "GET",
       "path": "/api/admin/analytics",
-      "purpose": "aggregate event/profile/application counts"
+      "purpose": "aggregated counts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/events",
+      "purpose": "event definitions including drafts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/events",
+      "purpose": "create event with audience/publication"
+    },
+    {
+      "method": "GET|PUT|PATCH|DELETE",
+      "path": "/api/admin/events/:id",
+      "purpose": "read/update; DELETE unpublishes, no physical deletion"
+    },
+    {
+      "method": "GET|POST",
+      "path": "/api/admin/materials",
+      "purpose": "list/create material including private quiz"
+    },
+    {
+      "method": "GET|PUT|PATCH",
+      "path": "/api/admin/materials/:id",
+      "purpose": "read/update definition and append immutable version"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/materials/:id/archive",
+      "purpose": "archive except canonical history material"
+    },
+    {
+      "method": "GET|POST",
+      "path": "/api/admin/media",
+      "purpose": "metadata list/raw binary upload with content type/audience/filename headers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/media/:id",
+      "purpose": "authenticated admin binary read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/applications/:id/hire",
+      "purpose": "explicit confirmed hiring, one merch entitlement per candidate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/referral-rewards",
+      "purpose": "HR merch entitlement list"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/referral-rewards/:id",
+      "purpose": "issued only, idempotent"
     }
   ],
   "notImplementedAdminAreas": [
-    "catalog CRUD",
     "organizer activity CRUD",
     "QR issuance/download",
     "game scene editor",
@@ -2681,7 +3927,11 @@
     "practice assignment management UI/API",
     "coordinator request inbox/reply",
     "private practice reports admin permissions",
-    "mentor assignment history"
+    "mentor assignment history",
+    "separate material/test constructor frontend",
+    "separate media/event/referral admin frontend",
+    "game/offer/points-reward catalog CRUD",
+    "referral hiring correction or merch delivery/SKU workflow"
   ],
   "proposedEditorEntities": [
     {
@@ -3479,5 +4729,170 @@
         "actor": "owner"
       }
     ]
+  },
+  "audiencePolicy": {
+    "values": [
+      "candidate",
+      "staff",
+      "all"
+    ],
+    "candidate": "authenticated candidate; only candidate/all published materials and events",
+    "staff": "active issued intern/mentor/employee account; only staff/all published materials and events",
+    "noStaffDowngrade": "revoked/deleted staff account cannot become candidate session",
+    "media": "audience must match eligible published nonarchived material reference; guessed ID is insufficient",
+    "unpublishedOrArchived": "not available to audience clients",
+    "admin": "separate HR token; staff role does not grant admin access"
+  },
+  "learning": {
+    "status": "implemented_backend_and_user_ui",
+    "tables": [
+      "materials",
+      "material_versions",
+      "material_questions",
+      "material_completions",
+      "material_media"
+    ],
+    "categories": [
+      "company",
+      "video",
+      "practice",
+      "stories"
+    ],
+    "blockTypes": {
+      "text": [
+        "text"
+      ],
+      "heading": [
+        "text"
+      ],
+      "image": [
+        "mediaId",
+        "alt"
+      ],
+      "video": [
+        "mediaId",
+        "title"
+      ]
+    },
+    "quiz": {
+      "pointsRange": [
+        1,
+        1000
+      ],
+      "questionCount": [
+        1,
+        10
+      ],
+      "optionsPerQuestion": [
+        2,
+        6
+      ],
+      "questionFields": [
+        "id",
+        "text",
+        "options",
+        "correctOptionId",
+        "explanation"
+      ],
+      "optionFields": [
+        "id",
+        "text"
+      ],
+      "correctAnswers": "server/admin only; not audience GET DTO",
+      "completionPolicy": "all correct, exactly one award per user/material across versions",
+      "ledgerReason": "material:<id>; canonical history shares task:history-1"
+    },
+    "versions": "each definition write appends immutable full snapshot and versioned questions; completions retain first completed version/points",
+    "updateConcurrency": "expectedVersion optional; stale supplied version rejected",
+    "media": {
+      "maxUploadBytes": 52428800,
+      "types": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "video/mp4",
+        "video/webm"
+      ],
+      "uploadHeaders": [
+        "Content-Type",
+        "X-File-Name",
+        "X-Media-Audience"
+      ],
+      "binaryStorage": "material_media.content BLOB",
+      "arbitraryUrlsAllowed": false
+    },
+    "adminFrontend": "proposed; no separate constructor implemented"
+  },
+  "materialTestConstructorPlan": {
+    "status": "proposed_frontend",
+    "backendStatus": "implemented bounded material CRUD/versioned quiz",
+    "screens": [
+      "material list with category/audience/publication",
+      "content and media block editor",
+      "quiz question/option editor",
+      "private correct answer and explanation inspector",
+      "points settings",
+      "audience preview without correct answers",
+      "version comparison and publication/archive confirmation",
+      "completion/award summary with authorized access"
+    ],
+    "operations": [
+      "add/remove/reorder questions and options",
+      "select exactly one correct option per question",
+      "edit explanations",
+      "configure test points",
+      "validate references and constraints",
+      "preview audience experience",
+      "save new immutable material version",
+      "publish to candidate/staff/all or archive"
+    ],
+    "validation": [
+      "1..10 unique question IDs",
+      "2..6 unique option IDs per question",
+      "correctOptionId belongs to same question",
+      "integer points1..1000",
+      "bounded text and registered media IDs only",
+      "material/media audience compatibility",
+      "at least one material block, at most40",
+      "stale expectedVersion rejected",
+      "old snapshots/completions/awards never overwritten",
+      "new version does not reset once-per-material completion"
+    ]
+  },
+  "referrals": {
+    "status": "implemented",
+    "tables": [
+      "referral_codes",
+      "application_referrals",
+      "referral_merch_rewards"
+    ],
+    "eligibility": "active intern credential and at least one non-cancelled assigned practice",
+    "codeFormat": "OC-[A-HJ-NP-Z2-9]{8}",
+    "codeGeneration": "cryptographically random, collision retry, one stable code per intern",
+    "attribution": "immutable per new application; repeat cannot add or replace; snapshots code/referrer ID/name",
+    "candidateDto": [
+      "code"
+    ],
+    "hrDto": [
+      "code",
+      "referrerUserId",
+      "referrerName",
+      "created"
+    ],
+    "ownStats": [
+      "applications",
+      "merchPending",
+      "merchIssued"
+    ],
+    "benefits": {
+      "candidate": "resume/application highlighted for HR",
+      "referrer": "merch after explicit HR-confirmed employment"
+    },
+    "merchPolicy": "first confirmed hiring per candidate wins; UNIQUE hired_candidate_user_id and application_id; another application same candidate returns409 referral_hire_already_confirmed",
+    "acceptedCreatesReward": false,
+    "pointsAwarded": false,
+    "merchSkuOrDeliveryImplemented": false,
+    "actor": "server hr-admin; not body controlled",
+    "adminFrontend": "separate interface proposed"
   }
 }
