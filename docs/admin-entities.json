@@ -1,0 +1,1737 @@
+{
+  "manifestVersion": 1,
+  "purpose": "Entity inventory for a future admin; no live data or credentials",
+  "sources": [
+    "server/app.py",
+    "server/catalog.json",
+    "server/solutions.py",
+    "server/shift.py",
+    "src/types.ts",
+    "src/games/types.ts",
+    "src/games/ShiftTypes.ts",
+    "server/level_rules.py",
+    "server/level-rules.json",
+    "src/games/sprites.ts",
+    "src/games/GameSprite.tsx",
+    "src/games/sprite-manifest.json"
+  ],
+  "scope": {
+    "databaseSchemaOnly": true,
+    "includesUserData": false,
+    "adminImplementationIncluded": false,
+    "v5ContractStatus": "implemented_runtime_schema_1"
+  },
+  "database": {
+    "tableCount": 10,
+    "foreignKeysEnabled": true,
+    "cascadeDeletes": false,
+    "entities": [
+      {
+        "id": "User",
+        "table": "users",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "current profile, authenticated identity",
+        "currentWriteCapability": "self profile PUT",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "bootstrap.user.id",
+              "auth.userId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "profile",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "profile"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_users_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "Session",
+        "table": "sessions",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "hashed bearer and expiration",
+        "currentWriteCapability": "auth creates; self logout deletes",
+        "fields": [
+          {
+            "sqlName": "token",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": true,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "expires",
+            "sqlType": "REAL",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_sessions_expiry",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "expires"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_sessions_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "token"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "TaskProgress",
+        "table": "progress",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "saved draft, monotonic revision, first completion",
+        "currentWriteCapability": "self draft PUT; self completion POST",
+        "fields": [
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "task",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 2,
+            "defaultSql": null,
+            "apiNames": [
+              "task"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "draft",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": "'{}'",
+            "apiNames": [
+              "draft"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "completed",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "completed"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "draft_revision",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "0",
+            "apiNames": [
+              "revision"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_progress_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "user_id",
+              "task"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "PointsEntry",
+        "table": "ledger",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "append-only earned/spent points",
+        "currentWriteCapability": "transactional domain actions only",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "reason",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "reason"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "delta",
+            "sqlType": "INTEGER",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "delta"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_ledger_user",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "user_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_ledger_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "user_id",
+              "reason"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_ledger_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "CareerApplication",
+        "table": "applications",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "offer interest plus immutable profile snapshot",
+        "currentWriteCapability": "self create; HR status PATCH",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "admin.userId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "offer",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "offer",
+              "offerId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "profile",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "profile"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "sqlite_autoindex_applications_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "user_id",
+              "offer"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_applications_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "EventRegistration",
+        "table": "registrations",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "one row per user and event, reversible status",
+        "currentWriteCapability": "self register/cancel",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "mutation.user_id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "event",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "event",
+              "bootstrap.eventId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "status",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "status"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_registrations_event",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "event",
+              "status"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_registrations_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "user_id",
+              "event"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_registrations_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "RewardExchange",
+        "table": "exchanges",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "one exchange per user and reward",
+        "currentWriteCapability": "self exchange only",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "repeatMutation.user_id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "reward",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "reward",
+              "bootstrap.rewardId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_exchanges_reward",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "reward"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_exchanges_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "user_id",
+              "reward"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_exchanges_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": []
+      },
+      {
+        "id": "AnalyticsEvent",
+        "table": "analytics",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "event name and occurrence, no properties",
+        "currentWriteCapability": "allowlisted self event or server action",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "INTEGER",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "event",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "event"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "created",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "created"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [],
+        "checks": []
+      },
+      {
+        "id": "EventActivity",
+        "table": "event_activities",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "runtime definition with stable private QR",
+        "currentWriteCapability": "seed insert only; no management API",
+        "fields": [
+          {
+            "sqlName": "id",
+            "sqlType": "TEXT",
+            "notNullDeclared": false,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [
+              "id"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "event_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "eventId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "title",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "title"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "description",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "description"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "points",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "points"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "active",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": "1",
+            "apiNames": [
+              "active"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "qr_token",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": true,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [],
+        "indexes": [
+          {
+            "name": "idx_event_activities_event",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "event_id",
+              "active"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_event_activities_2",
+            "unique": true,
+            "origin": "u",
+            "fields": [
+              "qr_token"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_event_activities_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "id"
+            ]
+          }
+        ],
+        "checks": [
+          "points BETWEEN 1 AND 1000",
+          "active IN (0,1)"
+        ]
+      },
+      {
+        "id": "ActivityCompletion",
+        "table": "activity_completions",
+        "status": "implemented",
+        "storage": "sqlite",
+        "description": "one-time award and amount snapshot",
+        "currentWriteCapability": "self QR scan only",
+        "fields": [
+          {
+            "sqlName": "user_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 1,
+            "defaultSql": null,
+            "apiNames": [],
+            "privateSecret": false,
+            "personalOrUserLinked": true
+          },
+          {
+            "sqlName": "activity_id",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 2,
+            "defaultSql": null,
+            "apiNames": [
+              "activityId"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "completed_at",
+            "sqlType": "TEXT",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "completedAt"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          },
+          {
+            "sqlName": "awarded_points",
+            "sqlType": "INTEGER",
+            "notNullDeclared": true,
+            "primaryKeyOrder": 0,
+            "defaultSql": null,
+            "apiNames": [
+              "awardedPoints"
+            ],
+            "privateSecret": false,
+            "personalOrUserLinked": false
+          }
+        ],
+        "foreignKeys": [
+          {
+            "field": "activity_id",
+            "references": {
+              "table": "event_activities",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          },
+          {
+            "field": "user_id",
+            "references": {
+              "table": "users",
+              "field": "id"
+            },
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_activity_completions_activity",
+            "unique": false,
+            "origin": "c",
+            "fields": [
+              "activity_id"
+            ]
+          },
+          {
+            "name": "sqlite_autoindex_activity_completions_1",
+            "unique": true,
+            "origin": "pk",
+            "fields": [
+              "user_id",
+              "activity_id"
+            ]
+          }
+        ],
+        "checks": [
+          "awarded_points BETWEEN 1 AND 1000"
+        ]
+      }
+    ]
+  },
+  "profileJson": {
+    "storage": [
+      "users.profile",
+      "applications.profile (submission snapshot)"
+    ],
+    "required": [
+      "fullName",
+      "contact",
+      "birthDate",
+      "direction",
+      "availability",
+      "education",
+      "consent"
+    ],
+    "optionalDefaults": {
+      "schedule": "",
+      "futureContact": false
+    },
+    "serverFields": [
+      "consentedAt"
+    ],
+    "age": {
+      "minimum": 18,
+      "maximum": 100,
+      "dateZone": "UTC+03:00",
+      "underageError": "age_restricted",
+      "invalidOrFutureError": "validation_error",
+      "persistentBan": false
+    },
+    "separateConsentHistory": false
+  },
+  "catalogEntities": [
+    {
+      "id": "Task",
+      "status": "implemented",
+      "storage": "server/catalog.json",
+      "collection": "tasks",
+      "definitionCount": 15,
+      "fields": [
+        "demo",
+        "description",
+        "direction",
+        "duration",
+        "explanation",
+        "game",
+        "id",
+        "level",
+        "offerId",
+        "points",
+        "presentation",
+        "puzzle",
+        "title"
+      ],
+      "identity": "id",
+      "currentWriteCapability": "source edit only; no admin CRUD",
+      "computedFields": []
+    },
+    {
+      "id": "CareerOffer",
+      "status": "implemented",
+      "storage": "server/catalog.json",
+      "collection": "offers",
+      "definitionCount": 6,
+      "fields": [
+        "demo",
+        "description",
+        "direction",
+        "id",
+        "location",
+        "pay",
+        "requirements",
+        "schedule",
+        "tasks",
+        "title",
+        "type"
+      ],
+      "identity": "id",
+      "currentWriteCapability": "source edit only; no admin CRUD",
+      "computedFields": []
+    },
+    {
+      "id": "CareerEvent",
+      "status": "implemented",
+      "storage": "server/catalog.json",
+      "collection": "events",
+      "definitionCount": 3,
+      "fields": [
+        "activities",
+        "capacity",
+        "date",
+        "demo",
+        "description",
+        "id",
+        "location",
+        "remaining",
+        "startTime",
+        "title",
+        "type"
+      ],
+      "identity": "id",
+      "currentWriteCapability": "source edit only; no admin CRUD",
+      "computedFields": [
+        "remaining",
+        "activities (runtime SQLite replaces seed definitions)"
+      ]
+    },
+    {
+      "id": "Reward",
+      "status": "implemented",
+      "storage": "server/catalog.json",
+      "collection": "rewards",
+      "definitionCount": 5,
+      "fields": [
+        "cost",
+        "demo",
+        "description",
+        "id",
+        "remaining",
+        "stock",
+        "title"
+      ],
+      "identity": "id",
+      "currentWriteCapability": "source edit only; no admin CRUD",
+      "computedFields": [
+        "remaining"
+      ]
+    },
+    {
+      "id": "GameDefinition",
+      "status": "implemented",
+      "storage": "server/catalog.json",
+      "collection": "games",
+      "identity": "id",
+      "currentWriteCapability": "source edit only; no admin CRUD",
+      "computedFields": [],
+      "definitionCount": 6,
+      "fields": [
+        "description",
+        "id",
+        "previewSpriteId",
+        "title"
+      ]
+    }
+  ],
+  "logicalRelations": [
+    {
+      "from": "progress.task",
+      "to": "tasks.id"
+    },
+    {
+      "from": "applications.offer",
+      "to": "offers.id"
+    },
+    {
+      "from": "registrations.event",
+      "to": "events.id"
+    },
+    {
+      "from": "exchanges.reward",
+      "to": "rewards.id"
+    },
+    {
+      "from": "event_activities.event_id",
+      "to": "events.id"
+    },
+    {
+      "from": "tasks.offerId",
+      "to": "offers.id"
+    },
+    {
+      "from": "ledger.reason task:<id>",
+      "to": "tasks.id"
+    },
+    {
+      "from": "ledger.reason exchange:<id>",
+      "to": "rewards.id"
+    },
+    {
+      "from": "ledger.reason event-activity:<id>",
+      "to": "event_activities.id"
+    },
+    {
+      "from": "tasks.game",
+      "to": "games.id"
+    },
+    {
+      "from": "games.previewSpriteId",
+      "to": "SpriteAsset.id"
+    },
+    {
+      "from": "tasks.presentation.sprites.<role>",
+      "to": "SpriteAsset.id"
+    },
+    {
+      "from": "tasks.presentation.scene.objects[].spriteId",
+      "to": "SpriteAsset.id"
+    }
+  ],
+  "statusEnums": {
+    "application": [
+      "sent",
+      "reviewing",
+      "contacted",
+      "accepted",
+      "rejected"
+    ],
+    "registration": [
+      "registered",
+      "cancelled"
+    ],
+    "activity": "active boolean",
+    "progress": "completed nullable timestamp",
+    "exchange": "presence of row only"
+  },
+  "computedFields": {
+    "balance": "SUM ledger.delta by user",
+    "events.remaining": "max(0, capacity - registered count)",
+    "rewards.remaining": "max(0, stock - exchange count)",
+    "activityCompletions.eventId": "join current event_activities.event_id",
+    "routeCompleted": "all six required tasks have completed timestamp",
+    "requiredRouteTasks": [
+      "shift-1",
+      "signal-1",
+      "movement-1",
+      "lab-1",
+      "delivery-1",
+      "history-1"
+    ],
+    "pointsAwarded": "transactional first award; repeat 0",
+    "activityCompletions.awardedPoints": "stored historical award snapshot"
+  },
+  "implementedAdminOperations": [
+    {
+      "method": "GET",
+      "path": "/api/admin/applications",
+      "purpose": "read applications with profile snapshots"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/applications/:id",
+      "purpose": "update allowed application status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/analytics",
+      "purpose": "aggregate event/profile/application counts"
+    }
+  ],
+  "notImplementedAdminAreas": [
+    "catalog CRUD",
+    "organizer activity CRUD",
+    "QR issuance/download",
+    "game scene editor",
+    "admin accounts/RBAC",
+    "admin audit log",
+    "consent history",
+    "reward fulfilment workflow",
+    "arbitrary points correction"
+  ],
+  "proposedEditorEntities": [
+    {
+      "id": "GameDefinition",
+      "role": "engine-supported family of mechanics",
+      "fields": [
+        "id",
+        "kind",
+        "title",
+        "description",
+        "direction",
+        "rendererKey",
+        "puzzleSchemaVersion",
+        "presentationSchemaVersion",
+        "allowedModuleKinds",
+        "allowedSpriteKinds",
+        "defaultRuleSetId",
+        "status",
+        "version"
+      ],
+      "relations": {
+        "levels": "1:N LevelDefinition"
+      },
+      "status": "proposed_extension",
+      "currentAdminCrud": false
+    },
+    {
+      "id": "LevelDefinition",
+      "role": "versioned playable definition, stable award identity",
+      "fields": [
+        "id",
+        "game",
+        "level",
+        "title",
+        "description",
+        "direction",
+        "points",
+        "duration",
+        "offerId",
+        "demo",
+        "explanation",
+        "puzzle",
+        "definitionVersion",
+        "gameDefinitionId",
+        "ruleSetId",
+        "presentation"
+      ],
+      "relations": {
+        "gameDefinitionId": "GameDefinition.id",
+        "ruleSetId": "RuleSet.id",
+        "presentation.scene.instances": "1:N LevelObject"
+      },
+      "identityCompatibility": "preserve current Task.id; ledger reason remains task:<id>",
+      "status": "proposed",
+      "currentAdminCrud": false,
+      "presentation": "current GamePresentation schemaVersion1; proposed published definition version separately"
+    },
+    {
+      "id": "SpriteAsset",
+      "role": "individual reusable visual asset",
+      "fields": [
+        "id",
+        "kind",
+        "src",
+        "width",
+        "height",
+        "variants",
+        "revision",
+        "tags",
+        "alt",
+        "provenance"
+      ],
+      "relations": {
+        "slots": "referenced by LevelObject.slots spriteId"
+      },
+      "status": "proposed_extension",
+      "currentAdminCrud": false
+    },
+    {
+      "id": "SpriteModule",
+      "role": "reusable object template with typed slots",
+      "fields": [
+        "id",
+        "kind",
+        "slots[{id,role,rect,allowedSpriteKinds}]"
+      ],
+      "relations": {
+        "instances": "1:N LevelObject"
+      },
+      "status": "proposed",
+      "currentAdminCrud": false,
+      "implemented": false
+    },
+    {
+      "id": "LevelObject",
+      "role": "placed instance linked to mechanic entity",
+      "fields": [
+        "id",
+        "moduleId",
+        "entityRef",
+        "x",
+        "y",
+        "z",
+        "slots"
+      ],
+      "relations": {
+        "moduleId": "SpriteModule.id",
+        "entityRef": "typed puzzle entity or cell",
+        "slots.<slotId>.spriteId": "SpriteAsset.id"
+      },
+      "status": "proposed",
+      "currentAdminCrud": false,
+      "extendsCurrent": "SceneObject; module/slots/entityRef are proposed, not supported runtime fields"
+    },
+    {
+      "id": "RuleSet",
+      "role": "versioned bounded server validation definition",
+      "fields": [
+        "id",
+        "gameKind",
+        "version",
+        "schemaVersion",
+        "validatorKey",
+        "publicConfig",
+        "privateConfig",
+        "successCriteria",
+        "feedback",
+        "scoring",
+        "validationFixtures",
+        "reviewStatus"
+      ],
+      "relations": {
+        "levels": "1:N LevelDefinition"
+      },
+      "privateFields": [
+        "privateConfig",
+        "successCriteria (answer keys and sufficient evidence paths)"
+      ],
+      "status": "proposed",
+      "currentAdminCrud": false
+    }
+  ],
+  "invariants": [
+    "do not publish runtime QR tokens or session hashes",
+    "do not alter previous awards when definitions change",
+    "preserve current task IDs and progress",
+    "validate solutions on server; presentation is not authoritative",
+    "no eval or executable code in content",
+    "do not expose private rule definitions in public catalog",
+    "published definitions should be immutable with draft migrations"
+  ],
+  "reviewNeededBeforeAdmin": [
+    "content version storage",
+    "stable and immutable references or historical snapshots",
+    "status history and actor audit",
+    "role and export permissions",
+    "versioned consent policy and erasure workflow",
+    "optional future ModuleDefinition slot schema and typed puzzle bindings"
+  ],
+  "privateRuleRegistry": {
+    "status": "implemented",
+    "storage": "server/level-rules.json",
+    "schemaVersion": 1,
+    "fields": {
+      "levels": "taskId to private ruleRef map",
+      "rules": "ruleRef to typed rule definition"
+    },
+    "bindings": {
+      "history-1": "history-company-v1",
+      "shift-1": "shift-packaging-v1",
+      "shift-2": "shift-supply-v1"
+    },
+    "definitions": {
+      "history": {
+        "fields": [
+          "game",
+          "answers"
+        ],
+        "answers": "questionId to optionId map; private values omitted"
+      },
+      "shift": {
+        "fields": [
+          "game",
+          "observedChange",
+          "explanation",
+          "nextStep",
+          "responsible",
+          "localizationPaths",
+          "causeFacts",
+          "contradictoryFacts",
+          "explanationText",
+          "outcome",
+          "assessment"
+        ],
+        "localizationPaths": "OR paths; AND categories within path; OR fact IDs within category",
+        "outcome": [
+          "summary",
+          "before",
+          "after"
+        ],
+        "assessment": [
+          "localization",
+          "cause",
+          "nextStep"
+        ]
+      }
+    },
+    "visibility": "server-only; never public catalog",
+    "currentWriteCapability": "source edit and server restart",
+    "contentPublicationImplemented": false,
+    "clientRuleSelectionAllowed": false,
+    "validation": "strict fields/schema, duplicate-key rejection, cross references to current public puzzle; fail closed"
+  },
+  "browserPreferences": {
+    "status": "implemented",
+    "centralAdminEntity": false,
+    "fields": [
+      {
+        "name": "rewardGoal",
+        "storage": "localStorage per user",
+        "serverPersisted": false
+      },
+      {
+        "name": "demoUserIdentity",
+        "storage": "localStorage",
+        "serverPersisted": "used to select demo identity only"
+      },
+      {
+        "name": "careerDirectionTransition",
+        "storage": "sessionStorage",
+        "serverPersisted": false
+      }
+    ],
+    "bearerStorage": "JavaScript memory only"
+  },
+  "runtimeVisualEntities": [
+    {
+      "id": "SpriteAsset",
+      "status": "implemented",
+      "storage": "src/games/sprite-manifest.json",
+      "schemaVersion": 1,
+      "fields": [
+        "id",
+        "kind",
+        "src",
+        "width",
+        "height",
+        "pixelWidth",
+        "pixelHeight"
+      ],
+      "definitionCount": 16,
+      "assets": [
+        {
+          "id": "automation-bottle-circle",
+          "kind": "automation",
+          "src": "/assets/games-v5/automation-bottle-circle.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "automation-bottle-square",
+          "kind": "automation",
+          "src": "/assets/games-v5/automation-bottle-square.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "automation-scanner",
+          "kind": "automation",
+          "src": "/assets/games-v5/automation-scanner.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "automation-tray",
+          "kind": "automation",
+          "src": "/assets/games-v5/automation-tray.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "mechanics-gear-ivory",
+          "kind": "mechanics",
+          "src": "/assets/games-v5/mechanics-gear-ivory.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "mechanics-gear-red",
+          "kind": "mechanics",
+          "src": "/assets/games-v5/mechanics-gear-red.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "mechanics-gear-silver",
+          "kind": "mechanics",
+          "src": "/assets/games-v5/mechanics-gear-silver.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "mechanics-socket",
+          "kind": "mechanics",
+          "src": "/assets/games-v5/mechanics-socket.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "laboratory-tube-red",
+          "kind": "laboratory",
+          "src": "/assets/games-v5/laboratory-tube-red.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "laboratory-tube-gold",
+          "kind": "laboratory",
+          "src": "/assets/games-v5/laboratory-tube-gold.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "laboratory-dropper",
+          "kind": "laboratory",
+          "src": "/assets/games-v5/laboratory-dropper.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "laboratory-meter",
+          "kind": "laboratory",
+          "src": "/assets/games-v5/laboratory-meter.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "warehouse-crate-a",
+          "kind": "warehouse",
+          "src": "/assets/games-v5/warehouse-crate-a.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "warehouse-crate-b",
+          "kind": "warehouse",
+          "src": "/assets/games-v5/warehouse-crate-b.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "warehouse-pallet-jack",
+          "kind": "warehouse",
+          "src": "/assets/games-v5/warehouse-pallet-jack.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        },
+        {
+          "id": "warehouse-barrier",
+          "kind": "warehouse",
+          "src": "/assets/games-v5/warehouse-barrier.png",
+          "width": 96,
+          "height": 96,
+          "pixelWidth": 192,
+          "pixelHeight": 192
+        }
+      ]
+    },
+    {
+      "id": "GamePresentation",
+      "status": "implemented",
+      "storage": "Task.presentation",
+      "fields": [
+        "schemaVersion",
+        "sprites",
+        "scene?"
+      ],
+      "schemaVersion": 1,
+      "sprites": "Record<semanticRole, installed SpriteAsset.id>",
+      "roleKindCompatibilityEnforced": false
+    },
+    {
+      "id": "Scene",
+      "status": "implemented",
+      "storage": "Task.presentation.scene",
+      "fields": [
+        "width",
+        "height",
+        "objects"
+      ],
+      "maxObjects": 200,
+      "decorationOnly": true
+    },
+    {
+      "id": "SceneObject",
+      "status": "implemented",
+      "fields": [
+        "id",
+        "spriteId",
+        "x",
+        "y",
+        "width",
+        "height",
+        "rotation?",
+        "layer?"
+      ],
+      "uniqueWithin": "Scene.objects by id",
+      "spriteIdReference": "SpriteAsset.id",
+      "layerRange": [
+        -100,
+        100
+      ],
+      "coordinates": "relative to scene design dimensions",
+      "decorationOnly": true
+    }
+  ],
+  "shiftPresentation": {
+    "status": "implemented",
+    "metricOptionalFields": [
+      "shortLabel",
+      "highlight",
+      "format"
+    ],
+    "numberFormatFields": [
+      "minimumFractionDigits",
+      "maximumFractionDigits",
+      "suffix",
+      "compactSuffix",
+      "comparisonSuffix"
+    ],
+    "schemeNodeOptionalFields": [
+      "position",
+      "display",
+      "metricId",
+      "format"
+    ],
+    "schemeDesignSize": {
+      "width": 350,
+      "height": 270
+    },
+    "nodeDisplayValues": [
+      "card",
+      "queue",
+      "extra"
+    ],
+    "legacyCatalogFallbacks": true,
+    "arbitraryFlowGraphEditorImplemented": false
+  },
+  "movementNetwork": {
+    "status": "implemented",
+    "puzzleFields": [
+      "width",
+      "height",
+      "source{x,y,direction}",
+      "target{x,y,direction}",
+      "maxGears",
+      "maxBelts?",
+      "beltLinks?:Belt[]"
+    ],
+    "solutionFields": [
+      "gears:Point[]",
+      "belts?:Belt[]"
+    ],
+    "nestedEntities": {
+      "Point": [
+        "x",
+        "y"
+      ],
+      "Belt": [
+        "from:Point",
+        "to:Point"
+      ]
+    },
+    "contacts": "orthogonally adjacent occupied shafts flip rotation",
+    "belts": "open belts preserve rotation; unordered pair must be allowlisted",
+    "constraints": [
+      "integer in-bounds coordinates",
+      "occupied endpoints only",
+      "no self links",
+      "no duplicate/reversed pair",
+      "maxGears/maxBelts limits",
+      "contradictory cycles rejected",
+      "all placed shafts connected to source",
+      "target direction must match"
+    ],
+    "legacyMissingBelts": "empty list",
+    "legacyMissingBeltConfiguration": "nonempty belts rejected",
+    "databaseTablesAdded": false
+  }
+}
