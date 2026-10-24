@@ -347,7 +347,10 @@ export default function App() {
     (p) => !p.completed && p.draft && Object.keys(p.draft as object).length,
   );
   const continueTask =
-    catalog.tasks.find((t) => t.id === ongoing?.task) ?? catalog.tasks[0];
+    catalog.tasks.find((t) => t.id === ongoing?.task) ??
+    catalog.tasks.find(
+      (t) => !progress.some((p) => p.task === t.id && p.completed),
+    );
   const relevantOffers = catalog.offers.filter(
     (o) =>
       profile.direction === "undecided" || o.direction === profile.direction,
@@ -1238,7 +1241,20 @@ function Tasks({
 }) {
   const [topic, setTopic] = useState("all");
   const [state, setState] = useState("all");
-  const groups = [...new Set(tasks.map((t) => t.game))];
+  const visibleTasks = tasks.filter((task) => {
+    if (topic === "history" && task.game !== "history") return false;
+    if (topic === "professions" && task.game === "history") return false;
+    const item = progress.find((p) => p.task === task.id);
+    return (
+      state === "all" ||
+      (state === "completed"
+        ? Boolean(item?.completed)
+        : state === "started"
+          ? Boolean(item && !item.completed)
+          : !item)
+    );
+  });
+  const groups = [...new Set(visibleTasks.map((t) => t.game))];
   return (
     <>
       <p className="eyebrow">ПОПРОБУЙ ПРОФЕССИЮ</p>
@@ -1299,6 +1315,12 @@ function Tasks({
           </div>
         </article>
       )}
+      {!visibleTasks.length && (
+        <Empty>
+          Заданий с такими условиями пока нет. Измени фильтр, чтобы увидеть
+          другие уровни.
+        </Empty>
+      )}
       {groups
         .filter(
           (g) =>
@@ -1307,17 +1329,7 @@ function Tasks({
         )
         .map((game) => {
           const levels = tasks.filter((t) => t.game === game);
-          const visible = levels.filter((t) => {
-            const p = progress.find((p) => p.task === t.id);
-            return (
-              state === "all" ||
-              (state === "completed"
-                ? Boolean(p?.completed)
-                : state === "started"
-                  ? Boolean(p && !p.completed)
-                  : !p)
-            );
-          });
+          const visible = visibleTasks.filter((t) => t.game === game);
           if (!visible.length) return null;
           const done = levels.filter((t) =>
             progress.some((p) => p.task === t.id && p.completed),

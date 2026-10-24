@@ -106,7 +106,7 @@ p {
   isolation: isolate;
 }
 .app-header {
-  padding: 20px 20px 0;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -983,4 +983,17 @@ textarea:focus {
 }
 .profile-summary.detail-list {
   align-items: stretch;
+}
+.app-header .brand {
+  padding: 0;
+  color: var(--ink);
+  min-height: 34px;
+}
+.back-link {
+  align-self: flex-start;
+  padding: 0;
+  min-height: 32px;
+}
+.app-shell.welcome {
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
 }
