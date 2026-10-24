@@ -38,6 +38,29 @@ export interface CareerEvent {
   demo: boolean;
   requirements?: string[];
   program?: string[];
+  activities?: EventActivity[];
+}
+export interface EventActivity {
+  id: string;
+  eventId: string;
+  title: string;
+  description: string;
+  points: number;
+  active: boolean;
+}
+export interface ActivityCompletion {
+  activityId: string;
+  eventId: string;
+  completedAt: string;
+  awardedPoints?: number;
+}
+export interface ActivityScanResult {
+  activity: EventActivity;
+  event: { id: string; title: string };
+  completion: ActivityCompletion;
+  pointsAwarded: number;
+  alreadyCompleted: boolean;
+  balance: number;
 }
 export interface Reward {
   id: string;
@@ -105,6 +128,7 @@ export interface Bootstrap {
   exchanges: Exchange[];
   ledger: LedgerEntry[];
   catalog: Catalog;
+  activityCompletions?: ActivityCompletion[];
 }
 export const DIRECTIONS: Record<string, string> = {
   undecided: "Пока не определился",

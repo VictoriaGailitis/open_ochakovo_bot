@@ -25,3 +25,7 @@ The investigation follows the same 390 px frame and 20 px gutters. Its content u
 ## Registration age restriction
 
 A dedicated registration screen uses the existing typography and colors, a blush circular backdrop, a restrained 18+ badge and a sad variation of the opener mascot. It explains the age condition and offers a date-correction action without registering a profile. The illustration is a local transparent PNG generated from the existing mascot using the built-in image-generation tool; it is not a new extracted design frame. See `docs/age-gate.md` for the text, source asset and prompt.
+
+## Event activities and scanner
+
+The event detail includes activity cards with title, description, current reward and completion state. Completed cards display their historical awarded points and Moscow completion time. The scanner is available from Events and from event details. It uses the app palette and accessible native controls, with an explicit camera action, local image selection, a manual-code fallback and separate successful/repeated result states. No new design extraction was needed for these application components.

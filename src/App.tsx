@@ -9,6 +9,8 @@ import {
 import { api, ApiError, initialize, requestNotifications } from "./api";
 import { moscowCalendarDate, registrationAge } from "./ageEligibility";
 import { AgeRestricted } from "./components/AgeRestricted";
+import { EventActivities } from "./components/EventActivities";
+import { QrScanner } from "./components/QrScanner";
 import { GamePlayer } from "./games/Games";
 import type { Task, CompletionResult } from "./games/types";
 import { Mascot, WelcomeHistory } from "./components/Art";
@@ -23,6 +25,7 @@ import {
   type CareerEvent,
   type Reward,
   type Application,
+  type ActivityScanResult,
 } from "./types";
 
 type Route = { page: string; id?: string };
@@ -353,7 +356,7 @@ export default function App() {
     ? "tasks"
     : ["career", "offer", "applications"].includes(page)
       ? "career"
-      : ["events", "event", "registrations"].includes(page)
+      : ["events", "event", "registrations", "scan"].includes(page)
         ? "events"
         : "home";
   const task = catalog.tasks.find((t) => t.id === route.id);
@@ -658,6 +661,55 @@ export default function App() {
         <Events events={catalog.events} registrations={data.registrations} />
       );
       break;
+    case "scan":
+      content = (
+        <QrScanner
+          onBack={() => navigate("events")}
+          onEvent={(id) => navigate("event", id)}
+          onScan={async (code) => {
+            const result = await api<ActivityScanResult>(
+              "/event-activities/scan",
+              "POST",
+              { code },
+            );
+            // The committed result remains visible even if a later refresh fails.
+            setData((current) =>
+              current
+                ? {
+                    ...current,
+                    balance: result.balance,
+                    catalog: {
+                      ...current.catalog,
+                      events: current.catalog.events.map((event) =>
+                        event.id === result.activity.eventId
+                          ? {
+                              ...event,
+                              activities: [
+                                ...(event.activities ?? []).filter(
+                                  (item) => item.id !== result.activity.id,
+                                ),
+                                result.activity,
+                              ],
+                            }
+                          : event,
+                      ),
+                    },
+                    activityCompletions: [
+                      ...(current.activityCompletions ?? []).filter(
+                        (item) =>
+                          item.activityId !== result.completion.activityId,
+                      ),
+                      result.completion,
+                    ],
+                  }
+                : current,
+            );
+            await refresh().catch(() => undefined);
+            return result;
+          }}
+        />
+      );
+      break;
     case "event": {
       const registration = data.registrations.find(
         (r) => r.event === event?.id && r.status !== "cancelled",
@@ -762,6 +814,11 @@ export default function App() {
           >
             Мои записи →
           </button>
+          <EventActivities
+            event={event}
+            completions={data.activityCompletions ?? []}
+            onScan={() => navigate("scan")}
+          />
         </>
       ) : (
         <Empty>Событие не найдено.</Empty>
@@ -1696,6 +1753,18 @@ function Events({
     <>
       <h1 className="page-title">Встретимся в Очаково</h1>
       <p className="muted">Экскурсии, встречи и знакомство с командой.</p>
+      <button className="card card-click row" onClick={() => navigate("scan")}>
+        <span className="card-icon" aria-hidden="true">
+          ▦
+        </span>
+        <span className="card-copy stack">
+          <strong>Сканер QR-кодов</strong>
+          <span className="small muted">
+            Участвуй в активностях на мероприятиях и получай баллы
+          </span>
+        </span>
+        <span aria-hidden="true">→</span>
+      </button>
       <section className="calendar card stack">
         <div className="calendar-head row spread">
           <button
@@ -1918,6 +1987,10 @@ function Points({ data, goal }: { data: Bootstrap; goal: string }) {
             карточке задания.
           </p>
           <p>
+            За выполнение активностей на очных мероприятиях: отсканируй QR-код
+            организатора. Каждая активность приносит баллы один раз.
+          </p>
+          <p>
             Повторное прохождение сохраняет результат, но не начисляет призовые
             баллы снова. Подсказки доступны без штрафа.
           </p>
@@ -1935,6 +2008,14 @@ function Points({ data, goal }: { data: Bootstrap; goal: string }) {
   );
 }
 function ledgerTitle(reason: string, data: Bootstrap) {
+  if (reason.startsWith("event-activity:")) {
+    const id = reason.slice("event-activity:".length);
+    for (const event of data.catalog.events) {
+      const activity = event.activities?.find((item) => item.id === id);
+      if (activity) return `${activity.title} · ${event.title}`;
+    }
+    return "Активность мероприятия";
+  }
   const task = data.catalog.tasks.find((t) => reason.includes(t.id));
   const reward = data.catalog.rewards.find((r) => reason.includes(r.id));
   return task
@@ -2046,8 +2127,9 @@ function Privacy() {
       <section className="card stack">
         <h2>Что сохраняет прототип</h2>
         <p>
-          Профиль, игровой прогресс, историю баллов, отклики, записи и обмены.
-          Отклик хранит копию профиля на момент отправки.
+          Профиль, игровой прогресс, выполнения активностей мероприятий, историю
+          баллов, отклики, записи и обмены. Отклик хранит копию профиля на
+          момент отправки.
         </p>
         <p>
           Профиль используется для подбора направлений, заполнения заявки и

@@ -22,6 +22,7 @@ from .shift import assess as assess_shift, normalize_draft as normalize_shift_dr
 ROOT = Path(__file__).resolve().parent.parent
 CATALOG = json.loads((ROOT / 'server/catalog.json').read_text())
 MAX_BODY = 131072
+ACTIVITY_QR_PREFIX = 'ochakovo:activity:v1:'
 
 
 class APIError(Exception):
@@ -63,6 +64,19 @@ class Store:
             CREATE TABLE IF NOT EXISTS registrations (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), event TEXT, status TEXT, created TEXT, UNIQUE(user_id,event));
             CREATE TABLE IF NOT EXISTS exchanges (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), reward TEXT, created TEXT, UNIQUE(user_id,reward));
             CREATE TABLE IF NOT EXISTS analytics (id INTEGER PRIMARY KEY, user_id TEXT REFERENCES users(id), event TEXT, created TEXT);
+            CREATE TABLE IF NOT EXISTS event_activities (
+                id TEXT PRIMARY KEY, event_id TEXT NOT NULL, title TEXT NOT NULL,
+                description TEXT NOT NULL, points INTEGER NOT NULL CHECK(points BETWEEN 1 AND 1000),
+                active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), qr_token TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS activity_completions (
+                user_id TEXT NOT NULL REFERENCES users(id),
+                activity_id TEXT NOT NULL REFERENCES event_activities(id),
+                completed_at TEXT NOT NULL, awarded_points INTEGER NOT NULL CHECK(awarded_points BETWEEN 1 AND 1000),
+                PRIMARY KEY(user_id,activity_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_event_activities_event ON event_activities(event_id,active);
+            CREATE INDEX IF NOT EXISTS idx_activity_completions_activity ON activity_completions(activity_id);
             CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires);
             CREATE INDEX IF NOT EXISTS idx_registrations_event ON registrations(event,status);
             CREATE INDEX IF NOT EXISTS idx_exchanges_reward ON exchanges(reward);
@@ -72,6 +86,15 @@ class Store:
             columns={row['name'] for row in db.execute('PRAGMA table_info(progress)')}
             if 'draft_revision' not in columns:
                 db.execute('ALTER TABLE progress ADD COLUMN draft_revision INTEGER NOT NULL DEFAULT 0')
+            # Seeds contain definitions only. Tokens live in the ignored database and
+            # existing activity data and deactivations survive every application restart.
+            db.commit()
+            db.execute('BEGIN IMMEDIATE')
+            for event in CATALOG['events']:
+                for activity in event.get('activities',[]):
+                    if not db.execute('SELECT 1 FROM event_activities WHERE id=?',(activity['id'],)).fetchone():
+                        db.execute('INSERT INTO event_activities(id,event_id,title,description,points,active,qr_token) VALUES(?,?,?,?,?,?,?)',
+                                   (activity['id'],event['id'],activity['title'],activity['description'],activity['points'],int(activity.get('active',True)),secrets.token_urlsafe(32)))
             db.commit()
 
     def connect(self):
@@ -98,11 +121,23 @@ class Store:
         return db.execute('SELECT COALESCE(SUM(delta),0) FROM ledger WHERE user_id=?', (user_id,)).fetchone()[0]
 
     @staticmethod
+    def activity(row):
+        value={'id':row['id'],'eventId':row['event_id'],'title':row['title'],
+               'description':row['description'],'points':row['points'],'active':bool(row['active'])}
+        return value
+
+    @staticmethod
+    def activity_completions(db,uid):
+        return [{'activityId':row['activity_id'],'eventId':row['event_id'],'completedAt':row['completed_at'],'awardedPoints':row['awarded_points']}
+                for row in db.execute('SELECT c.activity_id,a.event_id,c.completed_at,c.awarded_points FROM activity_completions c JOIN event_activities a ON a.id=c.activity_id WHERE c.user_id=? ORDER BY c.completed_at,c.activity_id',(uid,))]
+
+    @staticmethod
     def catalog(db):
         catalog = copy.deepcopy(CATALOG)
         for event in catalog['events']:
             count = db.execute("SELECT COUNT(*) FROM registrations WHERE event=? AND status='registered'", (event['id'],)).fetchone()[0]
             event['remaining'] = max(0,event['capacity']-count)
+            event['activities']=[Store.activity(row) for row in db.execute('SELECT * FROM event_activities WHERE event_id=? ORDER BY rowid',(event['id'],))]
         for reward in catalog['rewards']:
             count=db.execute('SELECT COUNT(*) FROM exchanges WHERE reward=?',(reward['id'],)).fetchone()[0]
             reward['remaining']=max(0,reward['stock']-count)
@@ -129,7 +164,7 @@ class Store:
         completed_ids=[task_id for task_id in task_ids if any(p['task']==task_id and p['completed'] for p in rows['progress'])]
         route_progress={'completed':len(completed_ids),'total':len(task_ids),'taskIds':task_ids,'completedTaskIds':completed_ids}
         return dict(user={'id':uid},profile=profile,balance=self.balance(db,uid),catalog=self.catalog(db),
-                    routeCompleted=len(completed_ids)==len(task_ids),routeProgress=route_progress,**rows)
+                    routeCompleted=len(completed_ids)==len(task_ids),routeProgress=route_progress,activityCompletions=self.activity_completions(db,uid),**rows)
 
 
 class API:
@@ -249,6 +284,26 @@ class API:
         if errors: raise APIError(422,'Проверьте заполнение профиля.','validation_error',errors)
         return {**{k:body[k].strip() for k in required},'schedule':body.get('schedule','').strip(),'consent':True,'futureContact':body.get('futureContact',False),'consentedAt':now()}
 
+    def scan_activity(self, db, uid, body):
+        code=body.get('code')
+        match=re.fullmatch(re.escape(ACTIVITY_QR_PREFIX)+r'([A-Za-z0-9_-]{43})',code) if isinstance(code,str) else None
+        if not match: raise APIError(400,'Этот QR-код не относится к активности приложения.','qr_invalid')
+        row=db.execute('SELECT * FROM event_activities WHERE qr_token=?',(match[1],)).fetchone()
+        if not row: raise APIError(404,'Активность по этому QR-коду не найдена.','activity_not_found')
+        if not row['active']: raise APIError(409,'Эта активность сейчас недоступна.','activity_inactive')
+        event=self.item('events',row['event_id'])
+        existing=db.execute('SELECT completed_at,awarded_points FROM activity_completions WHERE user_id=? AND activity_id=?',(uid,row['id'])).fetchone()
+        if existing:
+            stamp=existing['completed_at'];points=0
+        else:
+            stamp=now();points=row['points']
+            db.execute('INSERT INTO activity_completions(user_id,activity_id,completed_at,awarded_points) VALUES(?,?,?,?)',(uid,row['id'],stamp,points))
+            db.execute('INSERT INTO ledger VALUES(?,?,?,?,?)',(ident(),uid,'event-activity:'+row['id'],points,stamp))
+            db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,'event_activity_completed',stamp))
+        return {'activity':self.store.activity(row),'event':{'id':event['id'],'title':event['title']},
+                'completion':{'activityId':row['id'],'eventId':row['event_id'],'completedAt':stamp,'awardedPoints':existing['awarded_points'] if existing else points},
+                'pointsAwarded':points,'alreadyCompleted':existing is not None,'balance':self.store.balance(db,uid)}
+
     def dispatch(self, method, path, body=None, headers=None, peer='127.0.0.1'):
         headers=headers or {};body=body if body is not None else {}
         path=urlsplit(path).path.rstrip('/') or '/'
@@ -281,6 +336,7 @@ class API:
                 db.execute('INSERT INTO analytics(user_id,event,created) VALUES(?,?,?)',(uid,event,now()))
                 return {'ok':True}
             profile=self.require_profile(db,uid)
+            if method=='POST' and path=='/api/event-activities/scan': return self.scan_activity(db,uid,body)
             match=re.fullmatch(r'/api/tasks/([^/]+)/(draft|complete)',path)
             if match:
                 task=self.item('tasks',match[1]);action=match[2]

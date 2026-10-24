@@ -1,6 +1,6 @@
 # Сервер VK Mini App «Очаково: изнутри»
 
-Python 3.10+; зависимости отсутствуют. SQLite сохраняет профиль, сессии, черновики, завершения заданий, реестр баллов, отклики, записи на события и обмены. Каталог — `server/catalog.json`. Все карьерные предложения, события, награды и профессиональные модели демонстрационные; реального найма или обещания выдачи награды нет.
+Python 3.10+; зависимости отсутствуют. SQLite сохраняет профиль, сессии, черновики, завершения заданий, реестр баллов, отклики, записи на события, активности с QR, историю их выполнения и обмены. Каталог — `server/catalog.json`. Все карьерные предложения, события, награды и профессиональные модели демонстрационные; реального найма или обещания выдачи награды нет.
 
 ## Локальный запуск
 
@@ -30,25 +30,26 @@ VK_APP_ID=<application-id> VK_APP_SECRET=<secure-key> ADMIN_TOKEN=<private-HR-to
 
 Ошибка: `{error: string, code: string, details?: object}`. Ошибки полей профиля — HTTP422 с `code:"validation_error"` и `details: {field: message}`. Валидная дата рождения с возрастом младше 18 лет возвращает отдельный HTTP422 `{error:"Регистрация доступна с 18 лет…",code:"age_restricted",details:{birthDate:"…"}}`, чтобы клиент показал приглашение вернуться позже. Неверное игровое решение — HTTP200 и `correct:false`; оно не создаёт завершение или начисление. Ресурсы другого пользователя не выдаются.
 
-| Метод | URL | Тело / результат |
-|---|---|---|
-| GET | `/api/health` | `{ok, service}` |
-| GET | `/api/config` | `{devAuth, vkConfigured}` |
-| GET | `/api/catalog` | Публичный `{tasks,offers,events,rewards}`, актуальные `remaining` |
-| POST | `/api/auth` | `{launchParams: string \| object}` → `{token,userId,mode}` |
-| POST | `/api/auth` | Только в dev: `{devUserId: string}` → `{token,userId,mode:'demo'}` |
-| DELETE | `/api/auth` | Завершает текущую сессию |
-| GET | `/api/bootstrap` | `{user:{id},profile,balance,catalog,progress,ledger,applications,registrations,exchanges}` |
-| GET | `/api/profile` | `{profile}` |
-| PUT | `/api/profile` | Профиль → `{profile}` |
-| PUT | `/api/tasks/:id/draft` | `{draft:object,revision?:integer}` → `{saved,revision,progress?}` |
-| POST | `/api/tasks/:id/complete` | `{solution:object}` → `{correct,pointsAwarded,alreadyCompleted,explanation?,errors?,balance?,progress?}` |
-| GET | `/api/ledger` | `{balance,ledger}` |
-| POST | `/api/applications` | `{offerId}` → `{application,alreadyApplied,demo,message}` |
-| POST | `/api/events/:id/registration` | `{}` → `{registration,catalog?}` |
-| DELETE | `/api/events/:id/registration` | `{registration,catalog}`; отмену можно повторить |
-| POST | `/api/rewards/:id/exchange` | `{}` → `{exchange,alreadyExchanged,balance,catalog?}` |
-| POST | `/api/analytics` | `{event}` → `{ok}` |
+| Метод  | URL                            | Тело / результат                                                                                               |
+| ------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/health`                  | `{ok, service}`                                                                                                |
+| GET    | `/api/config`                  | `{devAuth, vkConfigured}`                                                                                      |
+| GET    | `/api/catalog`                 | Публичный `{tasks,offers,events,rewards}`, актуальные `remaining`                                              |
+| POST   | `/api/auth`                    | `{launchParams: string \| object}` → `{token,userId,mode}`                                                     |
+| POST   | `/api/auth`                    | Только в dev: `{devUserId: string}` → `{token,userId,mode:'demo'}`                                             |
+| DELETE | `/api/auth`                    | Завершает текущую сессию                                                                                       |
+| GET    | `/api/bootstrap`               | `{user:{id},profile,balance,catalog,progress,ledger,applications,registrations,exchanges,activityCompletions}` |
+| GET    | `/api/profile`                 | `{profile}`                                                                                                    |
+| PUT    | `/api/profile`                 | Профиль → `{profile}`                                                                                          |
+| PUT    | `/api/tasks/:id/draft`         | `{draft:object,revision?:integer}` → `{saved,revision,progress?}`                                              |
+| POST   | `/api/tasks/:id/complete`      | `{solution:object}` → `{correct,pointsAwarded,alreadyCompleted,explanation?,errors?,balance?,progress?}`       |
+| GET    | `/api/ledger`                  | `{balance,ledger}`                                                                                             |
+| POST   | `/api/applications`            | `{offerId}` → `{application,alreadyApplied,demo,message}`                                                      |
+| POST   | `/api/events/:id/registration` | `{}` → `{registration,catalog?}`                                                                               |
+| DELETE | `/api/events/:id/registration` | `{registration,catalog}`; отмену можно повторить                                                               |
+| POST   | `/api/rewards/:id/exchange`    | `{}` → `{exchange,alreadyExchanged,balance,catalog?}`                                                          |
+| POST   | `/api/event-activities/scan`   | `{code}` → `{activity,event,completion,pointsAwarded,alreadyCompleted,balance}`                                |
+| POST   | `/api/analytics`               | `{event}` → `{ok}`                                                                                             |
 
 Профиль: `{fullName,contact,birthDate:'YYYY-MM-DD',direction,availability,education,schedule?,consent:true,futureContact?:false}`. Контакт — телефон или email. Все основные текстовые поля обязательны. Для этого прототипа принимается возраст от 18 до 100 лет. Возраст рассчитывается по московской календарной дате (UTC+3), ровно в восемнадцатый день рождения регистрация разрешена. Дата рождения принимается только в каноническом ISO-формате `YYYY-MM-DD`: невозможная дата, будущая дата, дополнительные пробелы, basic/week ISO-формы и дата со временем возвращают `validation_error`, а не `age_restricted`. Для родившихся 29 февраля возраст в невисокосном году увеличивается 1 марта, по сравнению календарных месяца и дня. Отказ не сохраняет неполный профиль, не изменяет ранее сохранённый взрослый профиль и не создаёт постоянный бан после ошибочного ввода; дату можно исправить и отправить анкету повторно. Пока профиль не сохранён, отклики и игровые действия недоступны (`profile_required`). При сохранении сервер добавляет `consentedAt`. Согласие на будущие предложения независимо от обработки анкеты. Для игр, откликов, событий и наград нужен сохранённый профиль; баланс и завершения не являются условиями отклика.
 
@@ -96,6 +97,37 @@ VK_APP_ID=<application-id> VK_APP_SECRET=<secure-key> ADMIN_TOKEN=<private-HR-to
 
 Проверки в `server/tests/test_shift.py` покрывают разные достаточные пути и нейтральные дополнительные факты, недостаточные/поддельные/противоречащие основания, действия вне полномочий, сохранение и канонизацию наблюдений, собственные основания, другой причинный вариант при том же симптоме, конкурентные начисления и отсутствие приватных правил в публичном puzzle.
 
+## Активности мероприятий и QR
+
+Каждое мероприятие содержит публичный массив `activities:[{id,eventId,title,description,points,active}]`. Это небольшие задания внутри встречи, экскурсии или мастер-класса. Каталог содержит только демонстрационные seed-описания: по две активности на каждое из трёх событий. Источник актуальных определений — SQLite `event_activities`; перезапуск сохраняет существующие определения, деактивацию и приватные QR-токены.
+
+При первом добавлении каждой активности сервер создаёт уникальный `qr_token` из 32 случайных байтов (`secrets.token_urlsafe(32)`, 43 символа URL-safe алфавита). QR содержит payload `ochakovo:activity:v1:<opaqueToken>`. Токен и готовый payload не сохраняются в Git-каталоге, не выдаются публичным `/api/catalog` или `/api/bootstrap`, не передаются в URL и не пишутся в access log. Создание активностей и выдача/скачивание QR для организаторов будут частью отдельной будущей админки и сейчас не реализованы. Текущий API не выдаёт готовые приватные payload. QR остаётся стабильным; доступность определяется `active` в хранилище.
+
+Сканирование: `POST /api/event-activities/scan` с `{code:"ochakovo:activity:v1:<opaqueToken>"}` и сессией пользователя. Нужен сохранённый профиль; предварительная запись на мероприятие не требуется. Сканирование не создаёт регистрацию, не расходует места и не меняет остальные записи.
+
+Ответ:
+
+```text
+{
+  activity: {id,eventId,title,description,points,active},
+  event: {id,title},
+  completion: {activityId,eventId,completedAt,awardedPoints},
+  pointsAwarded: number,
+  alreadyCompleted: boolean,
+  balance: number
+}
+```
+
+`activityCompletions` в bootstrap содержит `{activityId,eventId,completedAt,awardedPoints}` только текущего пользователя. `awardedPoints` — сохранённая сумма первоначального начисления, даже если размер начисления в определении активности позже изменится. При повторном сканировании `pointsAwarded:0`, `alreadyCompleted:true`; исходные completion и баланс не меняются. Баллы берутся только из серверного определения, клиент не может назначить сумму.
+
+В одной транзакции создаются уникальный `activity_completions(user_id,activity_id)` и положительная запись ledger с reason `event-activity:<activityId>`. Конкурентные повторы не создают новых баллов, ошибка ledger откатывает completion целиком. Таблицы добавляются без удаления существующих профилей, игровых завершений, сессий или истории. Код фиксирует предъявление QR в прототипе; он не доказывает физическое присутствие на площадке.
+
+Ошибки: `400 qr_invalid` — неверный/чужой формат; `404 activity_not_found` — payload правильной формы, но токен не найден; `409 activity_inactive` — активность отключена; `409 profile_required` — профиль не сохранён; `401 unauthorized` — нет действующей сессии. Отключённая активность не принимается даже после прежнего выполнения; история выполнения при этом сохраняется.
+
+Баллы в хранилище ограничены целыми значениями от 1 до 1 000. Возможное последующее изменение определения активности влияет только на будущие первые выполнения; исторические awardedPoints и ledger не переписываются. API управления активностями, экран организатора и команды управления QR в этом объёме отсутствуют. Существующий HR-кабинет работает с откликами, как и прежде.
+
+`server/tests/test_activities.py` проверяет additive migration старой базы, стабильность приватных токенов после перезапуска, отсутствие QR в публичных ответах, разграничение ошибок, необходимость профиля, walk-in без расхода мест, конкурентные повторы, изоляцию пользователей, сохранение баланса, неизменность заработка при изменении определения и откат completion при ошибке ledger. Тестовые payload получают напрямую из отдельной временной SQLite-базы; состояние inactive и изменённые баллы подготавливаются SQL-фикстурами. Это не пользовательский API или CLI управления. HTTP-тест проходит сканирование, повторное выполнение и получение истории; отдельно проверяется отсутствие organizer endpoints и сохранение прежнего HR-поведения.
+
 ## HR и аналитика
 
 Защищённые запросы используют `X-Admin-Token: <ADMIN_TOKEN>` или `Authorization: Bearer <ADMIN_TOKEN>`. Токен нельзя включать в URL или распространять среди кандидатов. CLI берёт его из ADMIN_TOKEN; при отсутствии использует игнорируемый `.data/admin-token`, при отсутствии файла создаёт его с правами 0600. Содержимое не выводится в журнал.
@@ -128,3 +160,9 @@ docker run --rm --name ochakovo-miniapp --env-file .env -p 127.0.0.1:3001:3001 -
 Контейнер запускается от непривилегированного UID10001, хранит базу в постоянном volume, содержит только Python runtime и готовые frontend assets. VK_APP_ID, VK_APP_SECRET и ADMIN_TOKEN передаются при запуске; они не попадают в образ. Dockerfile и контейнер не настраивают домен, TLS, VK developer account или реальный HR-маршрут компании. Перед обратным proxy оставляйте DEV_AUTH=0. Демовход дополнительно запрещён для нелокального Host и при forwarded-заголовках: loopback-адрес proxy не должен становиться доказательством локального пользователя.
 
 `bootstrap` содержит `routeCompleted:boolean` и `routeProgress:{completed,total,taskIds,completedTaskIds}` для первых уровней пяти игр (включая shift-1) и исторического теста, всего шесть заданий. Ранее начисленные баллы и завершения сохраняются; приглашение теперь учитывает новое исследование смены. Это основание показать приглашение на экскурсию. Возможность записаться через календарь не зависит от этого флага или баллов.
+
+## Клиентский QR-сканер
+
+Внутри VK используется `VKWebAppOpenCodeReader` с ответом `code_data` ([официальный SDK](https://github.com/VKCOM/vk-bridge)). Для веб-камеры и локальных изображений используется [ZXing browser](https://github.com/zxing-js/browser): динамическая загрузка только при выборе способа распознавания, камера с предпочтением задней, явное освобождение tracks/decoder/object URL при остановке, скрытии и выходе. Версии 0.1.5/0.21.3 совместимы с текущим Node 20/22; новые ветки требуют Node 24. `qrcode` — только dev-зависимость для тестовых QR, без интерфейса генерации в приложении.
+
+Камера запрашивается только после нажатия пользователя. Изображения PNG/JPEG/WebP до 10 MiB читаются локально; на API отправляется только распознанный payload. Чужие URL и команды не открываются. После ошибки можно повторить проверку. Повторный кадр блокируется синхронно до ответа API; серверная уникальность остаётся обязательной. После принятого ответа приложение обновляет статус, баланс и историю; QR не передаётся через URL.

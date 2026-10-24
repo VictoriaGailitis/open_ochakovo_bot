@@ -1,0 +1,247 @@
+.qr-scanner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #17171c;
+  font-family: "Inter Variable", Inter, Arial, sans-serif;
+  padding-bottom: 24px;
+  min-width: 0;
+}
+.qr-scanner * {
+  box-sizing: border-box;
+}
+.qr-scanner p,
+.qr-scanner h1,
+.qr-scanner h2 {
+  margin: 0;
+}
+.qr-scanner h1 {
+  font-size: 24px;
+  line-height: 30px;
+  letter-spacing: -0.24px;
+  font-weight: 600;
+}
+.qr-scanner h2 {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+}
+.qr-eyebrow {
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.22px;
+  color: #d50032;
+  font-weight: 500;
+}
+.qr-description {
+  font-size: 15px;
+  line-height: 21px;
+  color: #626262;
+}
+.qr-back,
+.qr-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  text-align: left;
+  color: #d50032;
+  font:
+    500 13px/18px "Inter Variable",
+    Inter,
+    Arial,
+    sans-serif;
+  cursor: pointer;
+  min-height: 24px;
+}
+.qr-back {
+  width: max-content;
+}
+.qr-primary,
+.qr-secondary {
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  padding: 16px;
+  min-height: 56px;
+  cursor: pointer;
+  font:
+    600 16px/24px "Inter Variable",
+    Inter,
+    Arial,
+    sans-serif;
+  text-align: center;
+}
+.qr-primary {
+  background: #d50032;
+  color: white;
+}
+.qr-secondary {
+  background: white;
+  color: #d50032;
+  border: 1px solid #e9cdd4;
+}
+.qr-scanner button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.qr-scanner button:focus-visible,
+.qr-scanner textarea:focus-visible,
+.qr-scanner input:focus-visible {
+  outline: 3px solid #ab2328;
+  outline-offset: 3px;
+}
+.qr-camera {
+  aspect-ratio: 1.2;
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #361822;
+  color: #fff8f2;
+  min-height: 220px;
+}
+.qr-camera video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+}
+.qr-camera-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+  text-align: center;
+}
+.qr-camera-placeholder[hidden],
+.qr-camera video[hidden] {
+  display: none;
+}
+.qr-camera-placeholder strong {
+  font-size: 18px;
+  line-height: 24px;
+}
+.qr-camera-placeholder p {
+  font-size: 12px;
+  line-height: 18px;
+  color: #e9cdd4;
+}
+.qr-viewfinder {
+  font-size: 64px;
+  line-height: 70px;
+  display: block;
+  width: 88px;
+  height: 80px;
+  border: 2px dashed #e9cdd4;
+  border-radius: 16px;
+}
+.qr-camera-label {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  text-align: center;
+  background: #361822d9;
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 18px;
+}
+.qr-file-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qr-file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.qr-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: #fce8ee;
+  border-radius: 16px;
+}
+.qr-manual label {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+.qr-manual textarea {
+  resize: vertical;
+  min-height: 85px;
+  max-height: 200px;
+  width: 100%;
+  border: 1px solid #e9cdd4;
+  border-radius: 12px;
+  background: #fff8f2;
+  padding: 12px;
+  font:
+    400 13px/19px "Inter Variable",
+    Inter,
+    Arial,
+    sans-serif;
+  color: #17171c;
+  overflow-wrap: anywhere;
+}
+.qr-small {
+  font-size: 11px;
+  line-height: 16px;
+}
+.qr-muted {
+  color: #626262;
+}
+.qr-error {
+  border: 1px solid #d50032;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff0f3;
+  color: #ab2328;
+  font-size: 13px;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+.qr-status {
+  padding: 12px;
+  background: #fce8ee;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 19px;
+}
+.qr-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #fce8ee;
+  border-radius: 24px;
+  font-size: 15px;
+  line-height: 21px;
+}
+.qr-result-mark {
+  background: #d50032;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 26px;
+  line-height: 32px;
+}
+.qr-points {
+  font-size: 22px;
+  line-height: 28px;
+  color: #ab2328;
+}
