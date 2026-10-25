@@ -4894,5 +4894,46 @@
     "merchSkuOrDeliveryImplemented": false,
     "actor": "server hr-admin; not body controlled",
     "adminFrontend": "separate interface proposed"
+  },
+  "eventActivityQrGeneratorPlan": {
+    "status": "proposed; required in separate admin app",
+    "entity": "EventActivity",
+    "organizerInputs": [
+      "title",
+      "description",
+      "points"
+    ],
+    "tokenGeneration": {
+      "location": "server",
+      "trigger": "activity creation",
+      "method": "secrets.token_urlsafe(32)",
+      "uniqueConstraint": "event_activities.qr_token",
+      "atomicWithActivityCreation": true
+    },
+    "payloadFormat": "ochakovo:activity:v1:<opaqueToken>",
+    "adminGenerator": [
+      "render QR from server-assigned payload",
+      "preview in activity card",
+      "download PNG",
+      "download SVG",
+      "print"
+    ],
+    "manualQrInputAllowed": false,
+    "qrImageUploadRequired": false,
+    "externalGeneratorRequired": false,
+    "scope": "one stable QR per activity shared by all participants; not per user",
+    "stability": [
+      "same payload on repeat preview/download",
+      "same payload after title/description/points edit",
+      "deactivation keeps token and completion history"
+    ],
+    "access": "authorized organizer only; no token in public catalog/bootstrap",
+    "acceptance": [
+      "creating an activity assigns its QR automatically",
+      "downloaded QR is recognized by the mini-app scanner",
+      "different activities have different payloads",
+      "repeat downloads preserve payload"
+    ],
+    "currentlyImplemented": "automatic private token generation for seed activities only; admin generator and management endpoints are not implemented"
   }
 }
