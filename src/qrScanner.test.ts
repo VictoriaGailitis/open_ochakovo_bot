@@ -11,6 +11,7 @@ import {
   qrCameraErrorMessage,
   qrImageValidationError,
   qrScanErrorMessage,
+  supportsNativeQrReader,
 } from "./qrScanner";
 const code = ACTIVITY_QR_PREFIX + "A".repeat(41) + "_-";
 
@@ -154,6 +155,23 @@ test("ordinary missing QR frames continue scanning, while unexpected decoder err
   assert.equal(isQrFrameMiss({ name: "ChecksumException" }), true);
   assert.equal(isQrFrameMiss({ name: "FormatException" }), true);
   assert.equal(isQrFrameMiss(new Error("Canvas unavailable")), false);
+});
+
+test("native scanner uses asynchronous client capabilities", async () => {
+  const methods: string[] = [];
+  assert.equal(await supportsNativeQrReader({ supportsAsync: async (method) => {
+    methods.push(method);
+    return true;
+  } }), true);
+  assert.deepEqual(methods, ["VKWebAppOpenCodeReader"]);
+  assert.equal(await supportsNativeQrReader({ supportsAsync: async () => false }), false);
+});
+
+test("missing, failed and unresponsive VK capability checks permit the camera fallback", async () => {
+  assert.equal(await supportsNativeQrReader({ supportsAsync: async () => {
+    throw new Error("Unsupported client");
+  } }), false);
+  assert.equal(await supportsNativeQrReader({ supportsAsync: () => new Promise(() => {}) }, 10), false);
 });
 
 test("native cancellation is recognized without guessing VK numeric error codes", () => {

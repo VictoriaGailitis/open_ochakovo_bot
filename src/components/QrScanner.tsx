@@ -16,7 +16,9 @@ import {
   qrCameraErrorMessage,
   qrImageValidationError,
   qrScanErrorMessage,
+  supportsNativeQrReader,
 } from "../qrScanner";
+import { prepareQrVideo } from "../qrCamera";
 import "./qr-scanner.css";
 
 export interface QrScannerProps {
@@ -36,6 +38,7 @@ type Phase =
 
 export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
   const [phase, setPhase] = useState<Phase>("idle"),
+    [nativeUnavailable, setNativeUnavailable] = useState(false),
     [manual, setManual] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -180,10 +183,11 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
     setResult(null);
     setPhase("vk");
     try {
-      if (!bridge.supports("VKWebAppOpenCodeReader")) {
-        showError(
-          "В этом клиенте VK сканер недоступен. Выбери изображение QR или используй камеру браузера.",
-        );
+      const supported = await supportsNativeQrReader(bridge);
+      if (!mounted.current || attempt !== operation.current) return;
+      if (!supported) {
+        setNativeUnavailable(true);
+        await startCamera("Открываем камеру: встроенный сканер VK в этом клиенте недоступен.");
         return;
       }
       const response = await bridge.send("VKWebAppOpenCodeReader", {});
@@ -196,20 +200,24 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
         setNotice(
           "Сканирование отменено. Можно открыть сканер снова или выбрать изображение QR.",
         );
-      } else
-        showError(
-          "Сканер VK недоступен или был закрыт. Попробуй ещё раз, выбери изображение QR или введи код вручную.",
-        );
+      } else {
+        setNativeUnavailable(true);
+        await startCamera("Сканер VK не запустился. Открываем камеру для сканирования.");
+      }
     }
   }
 
   async function openCamera() {
     if (gate.current.isPending || busy) return;
+    await startCamera();
+  }
+
+  async function startCamera(message = "") {
     const session = resources.current.begin();
     operation.current++;
     retryCode.current = "";
     setError("");
-    setNotice("");
+    setNotice(message);
     setResult(null);
     setPhase("starting");
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
@@ -223,7 +231,11 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       if (!mounted.current || !resources.current.isActive(session)) return;
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
       });
       const preview = video.current;
       const ended = () => {
@@ -247,14 +259,16 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       });
       if (!mounted.current || !resources.current.isActive(session)) return;
       if (!preview) throw new Error("Preview unavailable");
+      await prepareQrVideo(preview, stream, resources.current, session);
+      if (!mounted.current || !resources.current.isActive(session)) return;
       setPhase("camera");
       const reader = new BrowserQRCodeReader(undefined, {
         delayBetweenScanAttempts: 250,
         delayBetweenScanSuccess: 500,
-        tryPlayVideoTimeout: 5000,
       });
-      const controls = await reader.decodeFromStream(
-        stream,
+      // The preview is already playing and has real frame dimensions. Avoid
+      // decodeFromStream's second playback wait, which can hang in WebViews.
+      const controls = reader.scan(
         preview,
         (decoded, failure, scanControls) => {
           if (!mounted.current || !resources.current.isActive(session)) {
@@ -486,13 +500,13 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
               className="qr-primary"
               disabled={busy}
               onClick={() => {
-                void (inVK ? openNative() : openCamera());
+                void (inVK && !nativeUnavailable ? openNative() : openCamera());
               }}
             >
-              {inVK ? "Открыть сканер VK" : "Открыть камеру"}
+              {inVK && !nativeUnavailable ? "Открыть сканер VK" : "Открыть камеру"}
             </button>
           )}
-          {inVK && !cameraVisible && (
+          {inVK && !nativeUnavailable && !cameraVisible && (
             <button
               type="button"
               className="qr-link"

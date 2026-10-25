@@ -71,6 +71,26 @@ export class QrSubmissionGate {
   }
 }
 
+/** Old bridge.supports() uses a static list in web/React Native clients. */
+export async function supportsNativeQrReader(
+  bridge: { supportsAsync: (method: "VKWebAppOpenCodeReader") => Promise<boolean> },
+  timeoutMs = 2500,
+): Promise<boolean> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      bridge.supportsAsync("VKWebAppOpenCodeReader"),
+      new Promise<boolean>((resolve) => {
+        timeout = setTimeout(() => resolve(false), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
