@@ -150,7 +150,6 @@ export default function App() {
   const [data, setData] = useState<Bootstrap | null>(null);
   const [route, setRoute] = useState<Route>(readRoute);
   const [mode, setMode] = useState("");
-  const [vkName, setVkName] = useState("");
   const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -180,7 +179,6 @@ export default function App() {
       const result = await initialize();
       setData(result.data);
       setMode(result.mode);
-      setVkName(result.vkName ?? "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось подключиться.");
     } finally {
@@ -279,6 +277,15 @@ export default function App() {
 
   if (page === "admin") return <Admin />;
   if (["login", "practice", "mentor", "employee", "community"].includes(page)) return <StaffPortal page={page} />;
+  if (privacy)
+    return (
+      <div className="app-shell">
+        <main className="screen stack">
+          <Back page={profile ? "profile" : "home"} />
+          <Privacy />
+        </main>
+      </div>
+    );
   if (loading)
     return (
       <main className="app-shell screen loading" aria-busy="true">
@@ -302,15 +309,6 @@ export default function App() {
         </p>
         <Button onClick={() => void start()}>Попробовать снова</Button>
       </main>
-    );
-  if (privacy)
-    return (
-      <div className="app-shell">
-        <main className="screen stack">
-          <Back page={profile ? "profile" : "home"} />
-          <Privacy />
-        </main>
-      </div>
     );
   if (!profile) {
     if (!started)
@@ -345,9 +343,9 @@ export default function App() {
       );
     return (
       <div className="app-shell">
-        <main className="screen">
+        <main className="screen onboarding-screen">
           <ProfileForm
-            initial={{ ...emptyProfile, fullName: vkName }}
+            initial={{ ...emptyProfile }}
             demo={mode === "demo"}
             busy={busy}
             error={error}
@@ -391,11 +389,27 @@ export default function App() {
         new Date(`${e.date}T${e.startTime || "12:00"}:00+03:00`) > new Date(),
     )
     .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const openCareer = (direction: string) => {
+    sessionStore.set("ochakovo:career-direction", direction);
+    navigate("career");
+  };
+  const historyCareerExplanation = catalog.tasks.find(
+    (item) => item.id === "history-1",
+  )?.careerExplanation;
   let content: ReactNode;
 
   switch (page) {
     case "materials":
-      content = <Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId={route.id} onEarned={async () => { await refresh(); }} />;
+      content = (
+        <Learning
+          client={api}
+          loadMedia={loadCandidateMedia}
+          historyCareerExplanation={historyCareerExplanation}
+          onHistoryCareer={() => openCareer("technology")}
+          initialMaterialId={route.id}
+          onEarned={async () => { await refresh(); }}
+        />
+      );
       break;
     case "home":
       content = (
@@ -494,7 +508,19 @@ export default function App() {
       break;
     case "game":
       if (task?.id === "history-1") {
-        content = <><Back page="tasks">К играм</Back><Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId="ochakovo-history" onEarned={async () => { await refresh(); }} /></>;
+        content = (
+          <>
+            <Back page="tasks">К играм</Back>
+            <Learning
+              client={api}
+              loadMedia={loadCandidateMedia}
+              historyCareerExplanation={historyCareerExplanation}
+              onHistoryCareer={() => openCareer("technology")}
+              initialMaterialId="ochakovo-history"
+              onEarned={async () => { await refresh(); }}
+            />
+          </>
+        );
         break;
       }
       content = task ? (
@@ -582,10 +608,7 @@ export default function App() {
             await refresh();
             return result;
           }}
-          onCareer={(direction) => {
-            navigate("career");
-            sessionStore.set("ochakovo:career-direction", direction);
-          }}
+          onCareer={openCareer}
           onExit={() => {
             void refresh();
             navigate("tasks");
@@ -1168,6 +1191,7 @@ function ProfileForm({
   const [step, setStep] = useState(1);
   const [validation, setValidation] = useState("");
   const [ageRestricted, setAgeRestricted] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const dateInput = useRef<HTMLInputElement>(null);
   const correctDate = useRef(false);
   useEffect(() => {
@@ -1246,7 +1270,13 @@ function ProfileForm({
       />
     );
   return (
-    <form className="stack" onSubmit={submit}>
+    <>
+    {privacyOpen && (
+      <Modal title="Как используются данные" busy={false} onClose={() => setPrivacyOpen(false)}>
+        <Privacy />
+      </Modal>
+    )}
+    <form className="stack profile-form" onSubmit={submit}>
       <button
         type="button"
         className="button-ghost back-link"
@@ -1254,8 +1284,10 @@ function ProfileForm({
       >
         ← Назад
       </button>
-      <p className="brand">Очаково: изнутри</p>
-      <p className="eyebrow">ШАГ {step} ИЗ 2</p>
+      <div className="row spread profile-form-meta">
+        <p className="brand">Очаково: изнутри</p>
+        <p className="eyebrow">ШАГ {step} ИЗ 2</p>
+      </div>
       <h1 className="page-title">
         {step === 1 ? "Давай познакомимся" : "Что тебе по вкусу?"}
       </h1>
@@ -1406,9 +1438,9 @@ function ProfileForm({
           {validation || error}
         </p>
       ) : null}
-      <a className="small muted" href="#/privacy">
+      <button type="button" className="button-ghost small muted privacy-link" onClick={() => setPrivacyOpen(true)}>
         Как используются данные →
-      </a>
+      </button>
       <Button disabled={busy} type="submit">
         {busy ? "Сохраняем…" : step === 1 ? "Продолжить" : "Сохранить профиль"}
       </Button>
@@ -1419,6 +1451,7 @@ function ProfileForm({
         </p>
       )}
     </form>
+    </>
   );
 }
 
@@ -1585,7 +1618,7 @@ function OfferDetail({
           <dd>{offer.pay}</dd>
         </div>
         <div>
-          <dt>Сроки</dt>
+          <dt>{offer.type === "Практика" ? "Период практики" : "Сроки"}</dt>
           <dd>{offer.deadline ?? "Уточняются перед запуском набора"}</dd>
         </div>
       </dl>

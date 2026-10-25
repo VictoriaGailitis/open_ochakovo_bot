@@ -31,6 +31,7 @@ import {
 } from "./GameBoards";
 import { ShiftGame } from "./ShiftGame";
 import type { ShiftTask } from "./ShiftTypes";
+import { careerLabel } from "./careerLabels";
 import "./games.css";
 
 type Draft = Record<string, unknown>;
@@ -374,7 +375,7 @@ function GameSession({
             className="game-secondary"
             onClick={() => onCareer(task.direction)}
           >
-            Познакомиться с профессией →
+            {careerLabel(task.direction)}
           </button>
         </>
       )}

@@ -133,11 +133,9 @@ export const loadCandidateMedia: MediaLoader = (id) =>
 export async function initialize(): Promise<{
   data: Bootstrap;
   mode: string;
-  vkName?: string;
 }> {
   const params = new URLSearchParams(location.search);
   const inVK = params.has("vk_user_id");
-  let vkName: string | undefined;
   if (inVK) {
     await Promise.race([
       bridge.send("VKWebAppInit"),
@@ -155,18 +153,9 @@ export async function initialize(): Promise<{
     inVK ? { launchParams: location.search.slice(1) } : { devUserId: demoId() },
   );
   token = session.token;
-  if (inVK) {
-    // Profile fields remain editable; signed launch parameters establish identity server-side.
-    const user = await Promise.race([
-      bridge.send("VKWebAppGetUserInfo").catch(() => null),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-    ]);
-    if (user && "first_name" in user)
-      vkName = `${user.first_name} ${user.last_name}`;
-  }
   const data = await api<Bootstrap>("/bootstrap");
   syncDraftClock(data.progress.map((p) => p.revision ?? p.draft_revision ?? 0));
-  return { data, mode: session.mode, vkName };
+  return { data, mode: session.mode };
 }
 export async function requestNotifications() {
   if (!new URLSearchParams(location.search).has("vk_user_id"))

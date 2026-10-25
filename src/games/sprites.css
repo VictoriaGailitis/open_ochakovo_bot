@@ -26,3 +26,8 @@
   overflow: hidden;
   border-radius: inherit;
 }
+
+/* The atlas crop includes a fragment below the crate; the box ends above it. */
+.game-sprite[data-sprite="warehouse-crate-a"] > img {
+  clip-path: inset(0 0 8% 0);
+}
