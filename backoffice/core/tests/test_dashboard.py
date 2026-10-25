@@ -97,6 +97,8 @@ class DashboardRoleTests(TestCase):
         response = self.client.get('/admin/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Рабочий стол')
+        self.assertContains(response, 'aria-label="Открыть или закрыть меню"')
+        self.assertContains(response, '/static/backoffice/navigation.js')
         self.assertContains(response, 'Мероприятия и активности')
         self.assertNotContains(response, 'PRIVATE PERSON')
         self.assertNotContains(response, 'private@example.test')

@@ -2,6 +2,7 @@
 import os
 import secrets
 from pathlib import Path
+from django.templatetags.static import static
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -102,6 +103,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 52 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
 UNFOLD = {
+    'SCRIPTS': [lambda request: static('backoffice/navigation.js')],
     'SITE_TITLE': 'Очаково — управление',
     'SITE_HEADER': 'Очаково: изнутри',
     'SITE_SUBHEADER': 'Кабинет команды',
