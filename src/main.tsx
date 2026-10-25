@@ -33,6 +33,11 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+document.documentElement.toggleAttribute(
+  "data-vk-app",
+  new URLSearchParams(location.search).has("vk_user_id"),
+);
+
 const root: ReactDOM.Root =
   import.meta.hot?.data.root ??
   ReactDOM.createRoot(document.getElementById("root")!);
