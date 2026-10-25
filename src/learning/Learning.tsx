@@ -7,6 +7,7 @@ import type {
   MaterialResult,
   MaterialSummary,
 } from "./types";
+import { careerLabel } from "../games/careerLabels";
 import "./learning.css";
 
 export interface LearningProps {
@@ -14,6 +15,8 @@ export interface LearningProps {
   onEarned?: () => void | Promise<void>;
   initialMaterialId?: string;
   loadMedia?: MediaLoader;
+  historyCareerExplanation?: string;
+  onHistoryCareer?: () => void;
 }
 const categories: { id: "all" | MaterialCategory; label: string }[] = [
   { id: "all", label: "Все" },
@@ -34,6 +37,8 @@ export function Learning({
   onEarned,
   initialMaterialId,
   loadMedia,
+  historyCareerExplanation,
+  onHistoryCareer,
 }: LearningProps) {
   const [materials, setMaterials] = useState<MaterialSummary[] | null>(null),
     [listError, setListError] = useState("");
@@ -313,6 +318,14 @@ export function Learning({
                         {result.explanations?.map((item) => (
                           <p key={item.questionId}>{item.text}</p>
                         ))}
+                        {material.id === "ochakovo-history" && onHistoryCareer && (
+                          <>
+                            {historyCareerExplanation && <p>{historyCareerExplanation}</p>}
+                            <button type="button" className="button" onClick={onHistoryCareer}>
+                              {careerLabel("technology")}
+                            </button>
+                          </>
+                        )}
                       </>
                     )}
                   </div>

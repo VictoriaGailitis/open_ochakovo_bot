@@ -21,6 +21,7 @@ import {
   shiftPlotGeometry,
   updateShiftNote,
 } from "./shiftMechanics";
+import { careerLabel } from "./careerLabels";
 import "./shift.css";
 
 const shortLabels: Record<string, string> = {
@@ -438,6 +439,8 @@ function ShiftSession({
       {result?.correct ? (
         <ShiftResult
           result={result}
+          careerExplanation={task.careerExplanation}
+          careerButtonLabel={careerLabel(task.direction)}
           onCareer={() => onCareer(task.direction)}
           onReview={() => {
             setResult(null);
@@ -1351,11 +1354,15 @@ function ShiftCriteria({
 }
 function ShiftResult({
   result,
+  careerExplanation,
+  careerButtonLabel,
   onReview,
   onCareer,
   onExit,
 }: {
   result: ShiftCompletionResult;
+  careerExplanation?: string;
+  careerButtonLabel: string;
   onReview: () => void;
   onCareer: () => void;
   onExit: () => void;
@@ -1406,11 +1413,14 @@ function ShiftResult({
           </span>
         </div>
       )}
+      {careerExplanation && (
+        <p className="shift-body">{careerExplanation}</p>
+      )}
       <button className="shift-primary" onClick={onReview}>
         Вернуться к своему выводу
       </button>
       <button className="shift-link" onClick={onCareer}>
-        Узнать о профессиях →
+        {careerButtonLabel}
       </button>
       <button className="shift-secondary" onClick={onExit}>
         К заданиям

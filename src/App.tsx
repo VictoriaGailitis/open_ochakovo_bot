@@ -391,11 +391,27 @@ export default function App() {
         new Date(`${e.date}T${e.startTime || "12:00"}:00+03:00`) > new Date(),
     )
     .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const openCareer = (direction: string) => {
+    sessionStore.set("ochakovo:career-direction", direction);
+    navigate("career");
+  };
+  const historyCareerExplanation = catalog.tasks.find(
+    (item) => item.id === "history-1",
+  )?.careerExplanation;
   let content: ReactNode;
 
   switch (page) {
     case "materials":
-      content = <Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId={route.id} onEarned={async () => { await refresh(); }} />;
+      content = (
+        <Learning
+          client={api}
+          loadMedia={loadCandidateMedia}
+          historyCareerExplanation={historyCareerExplanation}
+          onHistoryCareer={() => openCareer("technology")}
+          initialMaterialId={route.id}
+          onEarned={async () => { await refresh(); }}
+        />
+      );
       break;
     case "home":
       content = (
@@ -494,7 +510,19 @@ export default function App() {
       break;
     case "game":
       if (task?.game === "history") {
-        content = <><Back page="tasks">К заданиям</Back><Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId="ochakovo-history" onEarned={async () => { await refresh(); }} /></>;
+        content = (
+          <>
+            <Back page="tasks">К заданиям</Back>
+            <Learning
+              client={api}
+              loadMedia={loadCandidateMedia}
+              historyCareerExplanation={historyCareerExplanation}
+              onHistoryCareer={() => openCareer("technology")}
+              initialMaterialId="ochakovo-history"
+              onEarned={async () => { await refresh(); }}
+            />
+          </>
+        );
         break;
       }
       content = task ? (
@@ -582,10 +610,7 @@ export default function App() {
             await refresh();
             return result;
           }}
-          onCareer={(direction) => {
-            navigate("career");
-            sessionStore.set("ochakovo:career-direction", direction);
-          }}
+          onCareer={openCareer}
           onExit={() => {
             void refresh();
             navigate("tasks");
@@ -1585,7 +1610,7 @@ function OfferDetail({
           <dd>{offer.pay}</dd>
         </div>
         <div>
-          <dt>Сроки</dt>
+          <dt>{offer.type === "Практика" ? "Период практики" : "Сроки"}</dt>
           <dd>{offer.deadline ?? "Уточняются перед запуском набора"}</dd>
         </div>
       </dl>

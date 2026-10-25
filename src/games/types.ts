@@ -113,6 +113,7 @@ export interface Task {
     | DeliveryPuzzle
     | HistoryPuzzle;
   explanation?: string;
+  careerExplanation?: string;
   offerId?: string;
   demo?: boolean;
   presentation?: GamePresentation;
