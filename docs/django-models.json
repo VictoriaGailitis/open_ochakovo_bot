@@ -25,7 +25,7 @@
     "models": 54,
     "tables": 54,
     "registeredModels": 46,
-    "fields": 367
+    "fields": 368
   },
   "models": [
     {
@@ -1747,7 +1747,7 @@
               "executed": false
             }
           ],
-          "maxLength": 40,
+          "maxLength": 500,
           "db_collation": null
         },
         {
@@ -2383,6 +2383,24 @@
           "db_collation": null
         },
         {
+          "name": "career_explanation",
+          "column": "career_explanation",
+          "type": "TextField",
+          "primaryKey": false,
+          "null": false,
+          "blank": true,
+          "unique": false,
+          "indexed": false,
+          "editable": true,
+          "autoCreated": false,
+          "default": "",
+          "dbDefault": {
+            "kind": "not_provided"
+          },
+          "validators": [],
+          "db_collation": null
+        },
+        {
           "name": "puzzle",
           "column": "puzzle",
           "type": "JSONField",
@@ -2661,7 +2679,8 @@
                 "duration",
                 "offer_id",
                 "demo",
-                "explanation"
+                "explanation",
+                "career_explanation"
               ]
             }
           ],

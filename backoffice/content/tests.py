@@ -263,3 +263,57 @@ class ContentTests(TestCase):
         display=admin.site._registry[Material].get_list_display(request);headers=[getattr(item,'short_description',item) for item in display]
         for title in ('Постоянный ID','Название','Категория','Аудитория','Опубликовано','Версия','Баллы'):self.assertIn(title,headers)
         title=next(item for item in display if getattr(item,'short_description','')=='Название');self.assertEqual(title.admin_order_field,'title');self.assertTrue(title(Material.objects.first()))
+
+    def test_career_explanation_seed_snapshot_and_publication_compatibility(self):
+        from pathlib import Path
+        from .services import task_snapshot
+        source_catalog=json.loads((Path(__file__).resolve().parents[2]/'server/catalog.json').read_text())
+        source=next(task for task in source_catalog['tasks'] if task.get('careerExplanation'))
+        level=LevelDefinition.objects.get(pk=source['id'])
+        self.assertEqual(level.career_explanation,source['careerExplanation'])
+        self.assertEqual(task_snapshot(level)['careerExplanation'],source['careerExplanation'])
+        original=catalog_store.task(None,level.pk)
+        self.assertEqual(original['careerExplanation'],source['careerExplanation'])
+        initial_version=level.published_version
+        level.career_explanation='Новый текст о связи задачи с карьерным направлением.';level.save()
+        self.assertEqual(catalog_store.task(None,level.pk),original)
+        published,_=publish_level(level,self.actor)
+        current=catalog_store.task(None,level.pk)
+        self.assertEqual(current['careerExplanation'],level.career_explanation)
+        self.assertEqual(current['contentVersion'],initial_version+1)
+        self.assertEqual(level.versions.get(version=initial_version).public_snapshot,original)
+        self.assertEqual(current['id'],original['id']);self.assertEqual(current['points'],original['points'])
+        published.career_explanation='';published.save();self.assertNotIn('careerExplanation',task_snapshot(published))
+        publish_level(published,self.actor);self.assertNotIn('careerExplanation',catalog_store.task(None,level.pk))
+        self.assertEqual(level.versions.get(version=initial_version+1).public_snapshot['careerExplanation'],level.career_explanation)
+
+    def test_career_explanation_is_editable_in_russian_level_form(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from .forms import LevelForm
+        field=LevelDefinition._meta.get_field('career_explanation')
+        self.assertTrue(field.blank);self.assertEqual(field.default,'')
+        level=LevelDefinition.objects.get(pk='signal-1');form=LevelForm(instance=level)
+        self.assertIn('career_explanation',form.fields)
+        self.assertEqual(form.fields['career_explanation'].label,'Объяснение карьерного перехода')
+        self.assertIn('после новой публикации',form.fields['career_explanation'].help_text)
+        request=RequestFactory().get('/admin/content/leveldefinition/signal-1/change/');request.user=self.actor
+        fields=admin.site._registry[LevelDefinition].get_fields(request,level)
+        self.assertIn('career_explanation',fields)
+
+    def test_fresh_catalog_offer_deadlines_are_preserved_without_truncation(self):
+        from pathlib import Path
+        from .forms import OfferForm
+        source=json.loads((Path(__file__).resolve().parents[2]/'server/catalog.json').read_text())
+        self.assertEqual(CareerOffer._meta.get_field('deadline').max_length,500)
+        for row in source['offers']:
+            self.assertEqual(CareerOffer.objects.get(pk=row['id']).deadline,row.get('deadline',''))
+        row=next(row for row in source['offers'] if len(row.get('deadline',''))>40)
+        prefix='Срок уточняется у HR. '
+        data={**row,'published':True,'archived':False,'deadline':prefix+('Д'*(500-len(prefix)))}
+        self.assertEqual(len(data['deadline']),500)
+        form=OfferForm(data=data,instance=CareerOffer.objects.get(pk=row['id']))
+        self.assertTrue(form.is_valid(),form.errors)
+        self.assertEqual(form.cleaned_data['deadline'],data['deadline'])
+        data['deadline']+='Д';too_long=OfferForm(data=data,instance=CareerOffer.objects.get(pk=row['id']))
+        self.assertFalse(too_long.is_valid());self.assertIn('deadline',too_long.errors)

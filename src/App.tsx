@@ -564,7 +564,7 @@ export default function App() {
                 saved: boolean;
                 revision: number;
                 draft?: unknown;
-              }>(`/tasks/${task.id}/draft`, "PUT", { draft, revision });
+              }>(`/tasks/${task.id}/draft`, "PUT", { draft, revision, contentVersion: task.contentVersion });
               if (saved.saved === false) {
                 syncDraftClock([saved.revision]);
                 if (draftWriteRevision.current[task.id] > revision) return;

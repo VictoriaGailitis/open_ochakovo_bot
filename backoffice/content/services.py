@@ -135,7 +135,7 @@ def validate_presentation(value):
             require(finite(obj.get('rotation', 0)) and type(obj.get('layer', 0)) is int and (abs(obj.get('layer', 0)) <= 100), 'Некорректный поворот или слой.')
 
 def task_snapshot(level):
-    return {'id': level.pk, 'game': level.family_id, 'level': level.level, 'title': level.title, 'description': level.description, 'direction': level.direction, 'points': level.points, 'duration': level.duration, 'offerId': level.offer_id, 'demo': level.demo, 'explanation': level.explanation, 'puzzle': copy.deepcopy(level.puzzle), 'presentation': presentation(level)}
+    return {'id': level.pk, 'game': level.family_id, 'level': level.level, 'title': level.title, 'description': level.description, 'direction': level.direction, 'points': level.points, 'duration': level.duration, 'offerId': level.offer_id, 'demo': level.demo, 'explanation': level.explanation, **({'careerExplanation':level.career_explanation} if level.career_explanation else {}), 'puzzle': copy.deepcopy(level.puzzle), 'presentation': presentation(level)}
 
 def check_level(level):
     task = task_snapshot(level)

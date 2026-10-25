@@ -12,7 +12,7 @@
       "models": 54,
       "tables": 54,
       "registeredModels": 46,
-      "fields": 367
+      "fields": 368
     },
     "domainTables": {
       "coreLegacyCompatible": 31,
@@ -172,6 +172,12 @@
           "backoffice/content/admin.py",
           "backoffice/content/services.py"
         ]
+      },
+      {
+        "id": "conservativeSeedCopySync",
+        "status": "implemented",
+        "command": "manage.py sync_seed_copy --baseline <previous-catalog.json> [--apply]",
+        "default": "dry-run; row locks; skip manual edits; immutable new level publication; preserve points and progress"
       }
     ],
     "remainingScope": [

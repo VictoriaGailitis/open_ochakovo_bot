@@ -102,7 +102,7 @@ class LevelAdmin(AuditedAdmin):
     list_filter = ('family', 'status')
     search_fields = ('id', 'title')
     readonly_fields = ('status', 'published_version', 'updated_at', 'preview_link','compare_link')
-    fieldsets = (('Уровень', {'fields': ('id', 'title', 'family', 'level', 'description', 'direction', 'points', 'duration', 'offer_id', 'demo', 'explanation')}), ('Задача и оформление', {'fields': ('puzzle', 'presentation')}), ('Приватная проверка и публикация', {'fields': ('rule_set', 'fixtures', 'expected_updated', 'preview_link','compare_link', 'status', 'published_version', 'updated_at')}))
+    fieldsets = (('Уровень', {'fields': ('id', 'title', 'family', 'level', 'description', 'direction', 'points', 'duration', 'offer_id', 'demo', 'explanation', 'career_explanation')}), ('Задача и оформление', {'fields': ('puzzle', 'presentation')}), ('Приватная проверка и публикация', {'fields': ('rule_set', 'fixtures', 'expected_updated', 'preview_link','compare_link', 'status', 'published_version', 'updated_at')}))
 
     def save_model(self, request, obj, form, change):
         if change:

@@ -6,7 +6,7 @@ import "./catalog.css";
 
 export function GameCatalog({
   games,
-  tasks,
+  tasks: allTasks,
   progress,
   onSelect,
 }: {
@@ -15,6 +15,7 @@ export function GameCatalog({
   progress: Progress[];
   onSelect: (id: string) => void;
 }) {
+  const tasks = allTasks.filter((task) => task.id !== "history-1");
   const [selected, setSelected] = useState<GameDefinition | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const definitions =
@@ -28,7 +29,7 @@ export function GameCatalog({
     }));
   const playable = definitions.filter(
     (game) =>
-      game.id !== "history" && tasks.some((task) => task.game === game.id),
+      tasks.some((task) => task.game === game.id),
   );
   useEffect(() => {
     if (selected) {

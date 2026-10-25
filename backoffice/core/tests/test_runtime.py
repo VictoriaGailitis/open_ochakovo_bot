@@ -91,6 +91,24 @@ class RuntimeTest(TestCase):
                     HTTP_X_FORWARDED_PROTO='https')
         self.assertEqual(response.status_code, 200)
 
+    def test_republished_level_rejects_old_draft_and_completion_without_writes(self):
+        from backoffice.content.models import LevelDefinition
+        from backoffice.content.services import publish_level
+        from backoffice.core.models import GameProgress
+        self.call('PUT','/api/profile',PROFILE)
+        version=self.api.item('tasks','signal-1')['contentVersion']
+        self.call('PUT','/api/tasks/signal-1/draft',{'draft':{'rules':[]},'revision':1,'contentVersion':version})
+        level=LevelDefinition.objects.get(pk='signal-1')
+        level.title='Обновлённый уровень';level.save()
+        publish_level(level)
+        before=GameProgress.objects.get(user_id='demo:runtime',task='signal-1').draft
+        for method,action in [('PUT','draft'),('POST','complete')]:
+            with self.assertRaises(APIError) as rejected:
+                self.call(method,'/api/tasks/signal-1/'+action,{'draft':{'new':True},'revision':2,'solution':{},'contentVersion':version})
+            self.assertEqual(rejected.exception.code,'task_changed')
+        self.assertEqual(GameProgress.objects.get(user_id='demo:runtime',task='signal-1').draft,before)
+        self.assertEqual(LedgerEntry.objects.count(),0)
+
     def test_legacy_shared_admin_token_cannot_bypass_personal_rbac(self):
         with patch.dict('os.environ', {'ADMIN_TOKEN': 'retired-test-token'}):
             response = Client().get('/api/admin/applications', HTTP_X_ADMIN_TOKEN='retired-test-token')

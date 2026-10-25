@@ -93,7 +93,7 @@ def seed_content():
         rule_ref = rules['levels'].get(task['id'])
         rule = rules['rules'].get(rule_ref)
         value = {name: task[name] for name in ('level', 'title', 'description', 'direction', 'points', 'duration', 'demo', 'explanation', 'puzzle')}
-        value.update(family_id=task['game'], offer_id=task.get('offerId', ''), presentation=task.get('presentation', {'schemaVersion': 1, 'sprites': {}}), rule_set_id=rule_ref, fixtures={'positive': [witness(task, rule)], 'negative': [{}]})
+        value.update(career_explanation=task.get('careerExplanation', ''), family_id=task['game'], offer_id=task.get('offerId', ''), presentation=task.get('presentation', {'schemaVersion': 1, 'sprites': {}}), rule_set_id=rule_ref, fixtures={'positive': [witness(task, rule)], 'negative': [{}]})
         obj = LevelDefinition.objects.create(id=task['id'], **value)
         publish_level(obj)
     for row in catalog['offers']:
