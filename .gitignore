@@ -22,3 +22,8 @@ backups/
 .venv/
 staticfiles/
 media/
+
+# Local presentation and document build artifacts
+.codex-presentation/
+output/
+tmp/
