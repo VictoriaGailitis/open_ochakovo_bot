@@ -42,8 +42,8 @@ export function GameCatalog({
     else setSelected(game);
   }
   return (
-    <section className="game-catalog" aria-label="Игровая зона">
-      <h1>Игровая зона</h1>
+    <section className="game-catalog" aria-label="Игры">
+      <h1>Игры</h1>
       <p className="catalog-eyebrow">
         {playable.length} ИГР · ВЫБЕРИ СВОЁ ДЕЛО
       </p>

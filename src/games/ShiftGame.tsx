@@ -415,7 +415,7 @@ function ShiftSession({
             void leave();
           }}
         >
-          ← Задания
+          ← Игры
         </button>
       </div>
       <h1 ref={heading} tabIndex={-1}>
@@ -1423,7 +1423,7 @@ function ShiftResult({
         {careerButtonLabel}
       </button>
       <button className="shift-secondary" onClick={onExit}>
-        К заданиям
+        К играм
       </button>
       <p className="shift-small shift-muted">
         {result.alreadyCompleted

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { ApiClient, MediaLoader } from "../api";
 import type {
   Material,
@@ -8,6 +8,7 @@ import type {
   MaterialSummary,
 } from "./types";
 import { careerLabel } from "../games/careerLabels";
+import { readingSteps } from "./readingSteps";
 import "./learning.css";
 
 export interface LearningProps {
@@ -51,10 +52,24 @@ export function Learning({
     [result, setResult] = useState<MaterialResult | null>(null),
     [submitting, setSubmitting] = useState(false),
     [notice, setNotice] = useState("");
+  const [visibleSteps, setVisibleSteps] = useState(1),
+    [quizStarted, setQuizStarted] = useState(false),
+    [questionIndex, setQuestionIndex] = useState(0);
+  const steps = useMemo(
+    () => readingSteps(material?.blocks ?? []),
+    [material?.blocks],
+  );
+  const readingComplete = visibleSteps >= steps.length;
+  const question = material?.quiz?.questions[questionIndex];
+  const lastQuestion =
+    questionIndex === (material?.quiz?.questions.length ?? 0) - 1;
   const pending = useRef(false),
     mounted = useRef(true),
     request = useRef(0),
     heading = useRef<HTMLHeadingElement>(null),
+    latestStep = useRef<HTMLDivElement>(null),
+    questionHeading = useRef<HTMLSpanElement>(null),
+    quizHeading = useRef<HTMLHeadingElement>(null),
     resultHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     mounted.current = true;
@@ -89,6 +104,9 @@ export function Learning({
     setAnswers({});
     setResult(null);
     setNotice("");
+    setVisibleSteps(1);
+    setQuizStarted(false);
+    setQuestionIndex(0);
     setSubmitting(false);
     pending.current = false;
     if (materialId)
@@ -112,6 +130,18 @@ export function Learning({
     }
   }, [material?.id]);
   useEffect(() => {
+    if (visibleSteps > 1) {
+      latestStep.current?.scrollIntoView({ block: "start" });
+      latestStep.current?.focus({ preventScroll: true });
+    }
+  }, [visibleSteps]);
+  useEffect(() => {
+    if (quizStarted && !result) {
+      questionHeading.current?.scrollIntoView({ block: "center" });
+      questionHeading.current?.focus({ preventScroll: true });
+    }
+  }, [quizStarted, questionIndex, result]);
+  useEffect(() => {
     if (result) {
       resultHeading.current?.scrollIntoView({ block: "center" });
       resultHeading.current?.focus({ preventScroll: true });
@@ -119,7 +149,15 @@ export function Learning({
   }, [result]);
   async function complete(event: FormEvent) {
     event.preventDefault();
-    if (!material?.quiz || pending.current) return;
+    if (
+      !material?.quiz ||
+      pending.current ||
+      !quizStarted ||
+      !readingComplete ||
+      !lastQuestion ||
+      material.quiz.questions.some((item) => !answers[item.id])
+    )
+      return;
     pending.current = true;
     setSubmitting(true);
     setReaderError("");
@@ -168,6 +206,14 @@ export function Learning({
       }
     }
   }
+  function startQuiz() {
+    setAnswers({});
+    setResult(null);
+    setReaderError("");
+    setNotice("");
+    setQuestionIndex(0);
+    setQuizStarted(true);
+  }
   if (materialId)
     return (
       <section
@@ -214,42 +260,89 @@ export function Learning({
                 Демонстрационный материал · уточняй актуальные условия у HR.
               </p>
             )}
-            <article className="learning-content">
-              {material.blocks.map((block, index) =>
-                block.type === "heading" ? (
-                  <h2 key={index}>{block.text}</h2>
-                ) : block.type === "text" ? (
-                  <p key={index}>{block.text}</p>
-                ) : (
-                  <LearningMedia
-                    key={`${material.id}:${index}:${block.mediaId}`}
-                    block={block}
-                    loadMedia={loadMedia}
-                  />
-                ),
-              )}
+            <p className="learning-progress" role="status">
+              {readingComplete
+                ? "Материал открыт полностью"
+                : `Часть ${visibleSteps} из ${steps.length}`}
+            </p>
+            <article className="learning-content" aria-label="Текст материала">
+              {steps.slice(0, visibleSteps).map((blocks, index) => (
+                <div
+                  className="learning-passage"
+                  key={`${material.id}:${index}`}
+                  ref={index === visibleSteps - 1 ? latestStep : undefined}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={`Часть ${index + 1}`}
+                >
+                  {blocks.map((block, blockIndex) =>
+                    block.type === "heading" ? (
+                      <h2 key={blockIndex}>{block.text}</h2>
+                    ) : block.type === "text" ? (
+                      <p key={blockIndex}>{block.text}</p>
+                    ) : (
+                      <LearningMedia
+                        key={blockIndex}
+                        block={block}
+                        loadMedia={loadMedia}
+                      />
+                    ),
+                  )}
+                </div>
+              ))}
             </article>
-            {material.quiz && (
+            {!readingComplete && (
+              <button
+                type="button"
+                className="learning-primary"
+                onClick={() =>
+                  setVisibleSteps((count) => Math.min(count + 1, steps.length))
+                }
+              >
+                Читать дальше →
+              </button>
+            )}
+            {material.quiz && readingComplete && (
               <section
                 className="learning-quiz"
                 aria-labelledby="learning-quiz-heading"
               >
                 <p className="learning-eyebrow">ЗАКРЕПИ ЗНАНИЯ</p>
-                <h2 id="learning-quiz-heading">Короткий тест</h2>
+                <h2 id="learning-quiz-heading" ref={quizHeading} tabIndex={-1}>
+                  Короткий тест
+                </h2>
                 <p className="learning-muted">
                   {material.completion
                     ? `Тест уже пройден: начислено ${material.completion.awardedPoints} баллов. Повторная попытка — для тренировки.`
                     : `За все правильные ответы — ${material.quiz.points} баллов один раз. Ошибки не уменьшают баланс.`}
                 </p>
-                <form
-                  onSubmit={(event) => {
-                    void complete(event);
-                  }}
-                >
-                  {material.quiz.questions.map((question, index) => (
+                {!quizStarted && (
+                  <button
+                    type="button"
+                    className="learning-primary"
+                    onClick={startQuiz}
+                  >
+                    Начать тест
+                  </button>
+                )}
+                {quizStarted && question && !result && (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (submitting || !answers[question.id]) return;
+                      if (lastQuestion) void complete(event);
+                      else setQuestionIndex((index) => index + 1);
+                    }}
+                  >
+                    <p className="learning-progress" role="status">
+                      Вопрос {questionIndex + 1} из{" "}
+                      {material.quiz.questions.length}
+                    </p>
                     <fieldset key={question.id} disabled={submitting}>
                       <legend>
-                        {index + 1}. {question.text}
+                        <span ref={questionHeading} tabIndex={-1}>
+                          {question.text}
+                        </span>
                       </legend>
                       {question.options.map((option) => (
                         <label
@@ -277,24 +370,31 @@ export function Learning({
                         </label>
                       ))}
                     </fieldset>
-                  ))}
-                  <button
-                    type="submit"
-                    className="learning-primary"
-                    disabled={
-                      submitting ||
-                      material.quiz.questions.some(
-                        (question) => !answers[question.id],
-                      )
-                    }
-                  >
-                    {submitting
-                      ? "Проверяем…"
-                      : material.completion
-                        ? "Проверить ещё раз"
-                        : "Проверить ответы"}
-                  </button>
-                </form>
+                    <div className="learning-step-actions">
+                      {questionIndex > 0 && (
+                        <button
+                          type="button"
+                          className="learning-secondary"
+                          disabled={submitting}
+                          onClick={() => setQuestionIndex((index) => index - 1)}
+                        >
+                          ← Назад
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className="learning-primary"
+                        disabled={submitting || !answers[question.id]}
+                      >
+                        {submitting
+                          ? "Проверяем…"
+                          : lastQuestion
+                            ? "Проверить ответы"
+                            : "Далее →"}
+                      </button>
+                    </div>
+                  </form>
+                )}
                 {result && (
                   <div
                     className={`learning-result ${result.correct ? "is-correct" : ""}`}
@@ -318,17 +418,48 @@ export function Learning({
                         {result.explanations?.map((item) => (
                           <p key={item.questionId}>{item.text}</p>
                         ))}
-                        {material.id === "ochakovo-history" && onHistoryCareer && (
-                          <>
-                            {historyCareerExplanation && <p>{historyCareerExplanation}</p>}
-                            <button type="button" className="button" onClick={onHistoryCareer}>
-                              {careerLabel("technology")}
-                            </button>
-                          </>
-                        )}
+                        {material.id === "ochakovo-history" &&
+                          onHistoryCareer && (
+                            <>
+                              {historyCareerExplanation && (
+                                <p>{historyCareerExplanation}</p>
+                              )}
+                              <button
+                                type="button"
+                                className="button"
+                                onClick={onHistoryCareer}
+                              >
+                                {careerLabel("technology")}
+                              </button>
+                            </>
+                          )}
                       </>
                     )}
+                    <button
+                      type="button"
+                      className="learning-primary"
+                      disabled={submitting}
+                      onClick={startQuiz}
+                    >
+                      {result.correct ? "Пройти ещё раз" : "Попробовать снова"}
+                    </button>
                   </div>
+                )}
+                {quizStarted && (
+                  <button
+                    type="button"
+                    className="learning-back"
+                    disabled={submitting}
+                    onClick={() => {
+                      setQuizStarted(false);
+                      setQuestionIndex(0);
+                      setResult(null);
+                      heading.current?.scrollIntoView({ block: "start" });
+                      heading.current?.focus({ preventScroll: true });
+                    }}
+                  >
+                    ↑ Перечитать материал
+                  </button>
                 )}
                 {notice && (
                   <p className="learning-muted" role="status">

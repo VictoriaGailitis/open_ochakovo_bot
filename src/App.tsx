@@ -431,7 +431,7 @@ export default function App() {
               <Mascot />
             </div>
           </section>
-          <Button onClick={() => navigate("tasks")}>Выбрать задание</Button>
+          <Button onClick={() => navigate("tasks")}>Выбрать игру</Button>
           {data.routeCompleted && (
             <div className="success stack">
               <h2>Маршрут открыт!</h2>
@@ -510,7 +510,7 @@ export default function App() {
       if (task?.game === "history") {
         content = (
           <>
-            <Back page="tasks">К заданиям</Back>
+            <Back page="tasks">К играм</Back>
             <Learning
               client={api}
               loadMedia={loadCandidateMedia}
@@ -618,7 +618,7 @@ export default function App() {
         <Empty>
           Такое задание не найдено.{" "}
           <button className="button-ghost" onClick={() => navigate("tasks")}>
-            К заданиям
+            К играм
           </button>
         </Empty>
       );
@@ -963,7 +963,7 @@ export default function App() {
             {rewardGoal === reward.id ? "Это моя цель ✓" : "Выбрать целью"}
           </Button>
           <button className="button-ghost" onClick={() => navigate("tasks")}>
-            Открыть задания →
+            Открыть игры →
           </button>
         </>
       ) : (
@@ -1092,7 +1092,7 @@ export default function App() {
           {[
             ["home", "⌂", "Для тебя"],
             ["materials", "▤", "Материалы"],
-            ["tasks", "◇", "Задания"],
+            ["tasks", "◇", "Игры"],
             ["career", "▣", "Карьера"],
             ["events", "▦", "События"],
           ].map(([key, icon, title]) => (

@@ -32,6 +32,9 @@
   line-height: 22px;
 }
 .learning h1:focus,
+.learning h2:focus,
+.learning legend span:focus,
+.learning-passage:focus,
 .learning h3:focus {
   outline: none;
 }
@@ -111,11 +114,64 @@
 .learning-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   overflow-wrap: anywhere;
 }
 .learning-content p {
   white-space: pre-wrap;
+  line-height: 1.7;
+}
+.learning-passage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line, #e9cdd4);
+  border-radius: 20px;
+  background: #fff;
+  scroll-margin-top: 90px;
+  animation: learning-appear 180ms ease-out;
+}
+.learning .learning-progress {
+  color: var(--muted, #626262);
+  font-size: 13px;
+  line-height: 18px;
+}
+.learning-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.learning-step-actions button {
+  flex: 1 1 120px;
+}
+.learning-secondary {
+  border: 1px solid var(--line, #e9cdd4);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--red, #d50032);
+  min-height: 52px;
+  padding: 14px;
+  font-weight: 600;
+}
+.learning button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+@keyframes learning-appear {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .learning-passage {
+    animation: none;
+  }
 }
 .learning-content h2 {
   margin-top: 8px;
