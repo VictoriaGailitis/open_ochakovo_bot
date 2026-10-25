@@ -307,18 +307,11 @@
   inset: 0;
   width: 100%;
   height: 100%;
-}
-.shift-scheme-connector {
-  position: absolute;
-  top: 21.6667%;
-  left: 19%;
-  display: block;
-  max-width: none;
-  transform: scale(calc(100cqw / 350px));
-  transform-origin: top left;
+  pointer-events: none;
 }
 .shift-scheme-node {
   position: absolute;
+  z-index: 2;
   width: 35.7143%;
   min-height: 56px;
   padding: 10px 12px;
@@ -363,6 +356,7 @@
 }
 .shift-scheme-queue {
   position: absolute;
+  z-index: 2;
   left: 51.4286%;
   top: 49.2593%;
   background: none;
@@ -383,10 +377,10 @@
 }
 .shift-flow-target {
   position: absolute;
-  left: 22%;
-  top: 70%;
-  width: 30%;
-  height: 20%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  z-index: 1;
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -397,12 +391,7 @@
 }
 .shift-scheme-extra {
   position: absolute;
-  right: 5%;
-  bottom: 1%;
-  display: flex;
-  gap: 4px;
-}
-.shift-scheme-extra button {
+  z-index: 2;
   border: 0;
   padding: 0;
   background: none;
@@ -410,6 +399,7 @@
   font-size: 8px;
   line-height: 12px;
   cursor: pointer;
+  text-align: right;
 }
 .shift-journal {
   display: flex;

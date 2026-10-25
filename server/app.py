@@ -1,4 +1,8 @@
-"""Dependency-free API for Ochakovo VK Mini App. Run with python3 -m server."""
+"""Mini-app domain API; Django/PostgreSQL transport lives in django_api.py.
+
+The original SQLite Store/HTTP transport remain an explicit regression oracle and
+read-only migration source. Production and development run Django/PostgreSQL.
+"""
 import base64
 import copy
 import hashlib
@@ -243,6 +247,9 @@ class API:
         row=db.execute('SELECT user_id FROM sessions WHERE token=? AND expires>?',(hashlib.sha256(token.encode()).hexdigest(),time.time())).fetchone() if token else None
         if not row:
             raise APIError(401,'Войдите в приложение заново.','unauthorized')
+        if getattr(db,'is_postgres',False):
+            # Serialize this user's points, progress and exchanges across workers.
+            db.execute('SELECT id FROM users WHERE id=? FOR UPDATE',(row[0],))
         return row[0]
 
     @staticmethod
@@ -381,6 +388,10 @@ class API:
             match=re.fullmatch(r'/api/tasks/([^/]+)/(draft|complete)',path)
             if match:
                 task=self.item('tasks',match[1]);action=match[2]
+                if getattr(db,'is_postgres',False):
+                    version=body.get('contentVersion')
+                    if version is not None and (type(version) is not int or version!=task.get('contentVersion')):
+                        raise APIError(409,'Уровень обновился. Откройте его заново перед сохранением решения.','task_changed')
                 if method=='PUT' and action=='draft':
                     draft=body.get('draft')
                     if not isinstance(draft,dict) or len(json.dumps(draft))>65536: raise APIError(400,'Некорректный черновик.')
@@ -429,6 +440,8 @@ class API:
                 return {'application':row,'alreadyApplied':not inserted,'demo':True,'message':'Тестовый отклик принят сервером. Доступен в HR-кабинете демонстрации.'}
             match=re.fullmatch(r'/api/events/([^/]+)/registration',path)
             if match and method in ('POST','DELETE'):
+                if getattr(db,'is_postgres',False):
+                    db.execute('SELECT id FROM career_events WHERE id=? FOR UPDATE',(match[1],))
                 event=community.event(db,match[1],staff);existing=db.execute('SELECT * FROM registrations WHERE user_id=? AND event=?',(uid,event['id'])).fetchone()
                 if method=='POST':
                     if existing and existing['status']=='registered': return {'registration':dict(existing),'alreadyRegistered':True}
@@ -445,6 +458,7 @@ class API:
                 return {'registration':dict(row) if row else None,'catalog':self.store.catalog(db,uid)}
             match=re.fullmatch(r'/api/rewards/([^/]+)/exchange',path)
             if match and method=='POST':
+                if getattr(db,'is_postgres',False):db.lock('reward',match[1])
                 reward=self.item('rewards',match[1])
                 existing=db.execute('SELECT * FROM exchanges WHERE user_id=? AND reward=?',(uid,reward['id'])).fetchone()
                 if existing: return {'exchange':dict(existing),'alreadyExchanged':True,'balance':self.store.balance(db,uid)}

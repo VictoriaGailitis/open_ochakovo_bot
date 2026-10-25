@@ -30,7 +30,6 @@ export function GameCatalog({
     (game) =>
       game.id !== "history" && tasks.some((task) => task.game === game.id),
   );
-  const history = definitions.find((game) => game.id === "history");
   useEffect(() => {
     if (selected) {
       if (!dialog.current?.open) dialog.current?.showModal();
@@ -42,8 +41,8 @@ export function GameCatalog({
     else setSelected(game);
   }
   return (
-    <section className="game-catalog" aria-label="Игровая зона">
-      <h1>Игровая зона</h1>
+    <section className="game-catalog" aria-label="Игры">
+      <h1>Игры</h1>
       <p className="catalog-eyebrow">
         {playable.length} ИГР · ВЫБЕРИ СВОЁ ДЕЛО
       </p>
@@ -62,11 +61,6 @@ export function GameCatalog({
           </span>
         </button>
       ))}
-      {history && (
-        <button className="catalog-history" onClick={() => open(history)}>
-          ОТКРОЙ ИСТОРИЮ ОЧАКОВО →
-        </button>
-      )}
       <dialog
         ref={dialog}
         aria-labelledby="catalog-level-title"

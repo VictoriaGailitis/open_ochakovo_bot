@@ -1,0 +1,1 @@
+{% extends "admin/base_site.html" %}{% block content %}<h1>{{ title }}</h1><p>{{ object }}. Прохождения и ранее начисленные баллы сохраняются.</p><form method="post">{% csrf_token %}<button type="submit">Архивировать</button></form>{% endblock %}

@@ -1,0 +1,1 @@
+{% extends "admin/base_site.html" %}{% block content %}<h1>{{ title }}</h1><p>Механику опубликованного уровня изменить нельзя. Для новой механики создайте другой ID.</p>{% for family in families %}<p><a href="?family={{ family.pk|urlencode }}">{{ family.title }}</a></p>{% endfor %}{% endblock %}

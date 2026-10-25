@@ -8,6 +8,11 @@ import copy
 import json
 from functools import lru_cache
 from pathlib import Path
+from contextvars import ContextVar
+
+# Each Django request resolves published rules from its PostgreSQL transaction.
+# Historical fixture tests can still provide an explicit file registry.
+runtime_rule_source = ContextVar('runtime_rule_source', default=None)
 
 
 RULES_PATH = Path(__file__).with_name('level-rules.json')
@@ -135,6 +140,9 @@ def default_level_rules():
 
 def resolve_level_rule(task, registry=None):
     try:
+        resolver=runtime_rule_source.get()
+        if registry is None and resolver is not None:
+            return resolver(task)
         source = registry if registry is not None else default_level_rules()
         return source.resolve(task)
     except (LevelRuleError, KeyError, TypeError, ValueError, AttributeError):

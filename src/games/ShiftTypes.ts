@@ -51,6 +51,7 @@ export interface ShiftSchemeFlow {
   to: string;
   label: string;
   factId: string;
+  primary?: boolean;
 }
 export interface ShiftJournalEvent {
   id: string;

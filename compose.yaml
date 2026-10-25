@@ -1,33 +1,48 @@
 name: ochakovo
-
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ochakovo
+      POSTGRES_USER: ochakovo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ochakovo -d ochakovo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
   app:
     build: .
     restart: unless-stopped
     init: true
     environment:
       DEV_AUTH: "0"
-      VK_APP_ID: ${VK_APP_ID:?Set VK_APP_ID in .env.production}
-      VK_APP_SECRET: ${VK_APP_SECRET:?Set VK_APP_SECRET in .env.production}
-      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env.production}
+      DJANGO_DEBUG: "0"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL using host db and port 5432}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set DJANGO_ALLOWED_HOSTS},127.0.0.1,localhost
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?Set CSRF_TRUSTED_ORIGINS}
+      DJANGO_TRUST_PROXY: "1"
+      VK_APP_ID: ${VK_APP_ID:?Set VK_APP_ID}
+      VK_APP_SECRET: ${VK_APP_SECRET:?Set VK_APP_SECRET}
       VK_LAUNCH_TTL: "3600"
     volumes:
       - app_data:/app/.data
+    depends_on:
+      db:
+        condition: service_healthy
     logging:
       driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
+      options: {max-size: "10m", max-file: "3"}
   https:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
-      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+    ports: ["80:80", "443:443", "443:443/udp"]
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -37,11 +52,9 @@ services:
         condition: service_healthy
     logging:
       driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
+      options: {max-size: "10m", max-file: "3"}
 volumes:
+  postgres_data:
   app_data:
   caddy_data:
   caddy_config:

@@ -96,7 +96,7 @@ def authenticate(db, body, peer):
     valid = verify(password, row['password_hash'] if row else dummy)
     if not row or not valid or not row['active']:
         db.execute('''INSERT INTO staff_login_attempts VALUES(?,1,?) ON CONFLICT(key)
-                   DO UPDATE SET failures=failures+1,updated=excluded.updated''', (key, current))
+                   DO UPDATE SET failures=staff_login_attempts.failures+1,updated=excluded.updated''', (key, current))
         # Return the error so failed-attempt counters are committed before raising it.
         return None, APIError(401, 'Неверный логин или пароль.', 'invalid_credentials')
     db.execute('DELETE FROM staff_login_attempts WHERE key=?', (key,))

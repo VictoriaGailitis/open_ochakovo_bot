@@ -8,7 +8,6 @@ import type {
   ShiftMetric,
   ShiftOption,
   ShiftPuzzle,
-  ShiftSchemeNode,
   ShiftValueFormat,
   ShiftView,
 } from "./ShiftTypes";
@@ -21,6 +20,7 @@ import {
   shiftPlotGeometry,
   updateShiftNote,
 } from "./shiftMechanics";
+import { shiftSchemeGeometry, SHIFT_SCHEME_SIZE } from "./shiftSchemeGeometry";
 import "./shift.css";
 
 const shortLabels: Record<string, string> = {
@@ -352,7 +352,7 @@ function ShiftSession({
     (n) => n.id === draft.schemeId,
   );
   const schemeFact = puzzle.facts.find(
-    (f) => f.id === (selectedScheme?.factId ?? puzzle.scheme.flows[0]?.factId),
+    (f) => f.id === (selectedScheme?.factId ?? puzzle.scheme.flows.find((flow) => flow.primary)?.factId ?? puzzle.scheme.flows[0]?.factId),
   );
   const detailTitle =
     draft.view === "metric" && metric
@@ -414,7 +414,7 @@ function ShiftSession({
             void leave();
           }}
         >
-          ← Задания
+          ← Игры
         </button>
       </div>
       <h1 ref={heading} tabIndex={-1}>
@@ -1210,57 +1210,38 @@ function ShiftScheme({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
-  const legacyPositions: Record<string, { x: number; y: number }> = {
-    feed: { x: 30, y: 33 },
-    capping: { x: 30, y: 112 },
-    packaging: { x: 195, y: 192 },
-    queue: { x: 180, y: 133 },
-  };
-  const display = (node: ShiftSchemeNode) =>
-    node.display ??
-    (node.id === "queue"
-      ? "queue"
-      : node.position || legacyPositions[node.id]
-        ? "card"
-        : "extra");
-  const position = (node: ShiftSchemeNode, index: number) => {
-    const point = node.position ??
-      legacyPositions[node.id] ?? {
-        x: 24 + (index % 2) * 174,
-        y: 32 + Math.floor(index / 2) * 80,
-      };
-    return {
-      left: `${(point.x / 350) * 100}%`,
-      top: `${(point.y / 270) * 100}%`,
-    };
-  };
-  const nodeValue = (node: ShiftSchemeNode) =>
+  const geometry = shiftSchemeGeometry(puzzle.scheme);
+  const position = (point: { x: number; y: number }) => ({
+    left: `${(point.x / SHIFT_SCHEME_SIZE.width) * 100}%`,
+    top: `${(point.y / SHIFT_SCHEME_SIZE.height) * 100}%`,
+  });
+  const nodeValue = (node: ShiftPuzzle["scheme"]["nodes"][number]) =>
     `${number(node.value, node.format)}${node.format?.suffix ?? (node.unit.endsWith("/мин") ? " / мин" : ` ${node.unit}`)}`;
-  const queue = puzzle.scheme.nodes.find((node) => display(node) === "queue");
-  const flow =
-    puzzle.scheme.flows.find((item) => item.from === "capping") ??
-    puzzle.scheme.flows[0];
   return (
     <div className="shift-scheme">
-      <img
-        className="shift-scheme-connector"
-        alt=""
-        src="/assets/shift/scheme-connector.svg"
-      />
-      <svg
-        className="shift-scheme-lines"
-        viewBox="0 0 350 270"
-        aria-hidden="true"
-      >
-        {[95, 117, 139, 161]
-          .slice(0, Math.min(4, queue?.value ?? 0))
-          .map((x) => (
-            <circle key={x} cx={x} cy="220" r="7" fill="#d50032" />
-          ))}
+      <svg className="shift-scheme-lines" viewBox="0 0 350 270" aria-hidden="true">
+        {geometry.flows.map(({ flow, path }) => (
+          <path key={flow.id} d={path} fill="none" stroke="#a2aaad" strokeWidth="14" />
+        ))}
+        {geometry.queues.map(({ nodeId, dots }) => (
+          <g key={nodeId}>
+            {dots.map((dot, index) => (
+              <circle key={index} cx={dot.x} cy={dot.y} r="7" fill="#d50032" />
+            ))}
+          </g>
+        ))}
       </svg>
-      {puzzle.scheme.nodes.map((node, index) => {
-        if (display(node) === "extra") return null;
-        const isQueue = display(node) === "queue";
+      {geometry.nodes.map((layout) => {
+        const { node, display } = layout;
+        const style = position(layout);
+        if (display === "extra") return (
+          <button key={node.id} className="shift-scheme-extra"
+            style={{ ...style, width: `${layout.width / SHIFT_SCHEME_SIZE.width * 100}%` }}
+            onClick={() => onSelect(node.id)}>
+            {node.label}: {nodeValue(node)}
+          </button>
+        );
+        const isQueue = display === "queue";
         const previous = puzzle.metrics.find(
           (metric) => metric.id === (node.metricId ?? node.id),
         )?.previous;
@@ -1268,44 +1249,26 @@ function ShiftScheme({
           <button
             key={node.id}
             className={`${isQueue ? "shift-scheme-queue" : "shift-scheme-node"} ${selectedId === node.id ? "selected" : ""}`}
-            style={position(node, index)}
+            style={style}
             onClick={() => onSelect(node.id)}
             aria-label={`${node.label}: ${nodeValue(node)}${isQueue && previous !== undefined ? `; ранее ${number(previous, node.format)}` : ""}`}
           >
-            <span>
-              {node.label.toUpperCase()}
-              {isQueue ? `: ${number(node.value, node.format)}` : ""}
-            </span>
-            {isQueue ? (
-              previous !== undefined && (
-                <small>ранее {number(previous, node.format)}</small>
-              )
-            ) : (
-              <strong>{nodeValue(node)}</strong>
-            )}
+            <span>{node.label.toUpperCase()}{isQueue ? `: ${number(node.value, node.format)}` : ""}</span>
+            {isQueue ? previous !== undefined && <small>ранее {number(previous, node.format)}</small> : <strong>{nodeValue(node)}</strong>}
           </button>
         );
       })}
       <p className="shift-scheme-time">СНИМОК {puzzle.snapshotTime}</p>
-      {flow && (
-        <button
-          className="shift-flow-target"
-          aria-label="Наблюдать движение между участками"
-          onClick={() => onSelect(flow.id)}
-        />
-      )}
-      <div className="shift-scheme-extra">
-        {puzzle.scheme.nodes
-          .filter((node) => display(node) === "extra")
-          .map((node) => (
-            <button key={node.id} onClick={() => onSelect(node.id)}>
-              {node.label}: {nodeValue(node)}
-            </button>
-          ))}
-      </div>
+      {geometry.flows.map(({ flow, fromLabel, toLabel, midpoint }) => (
+        <button key={flow.id} className="shift-flow-target" style={position(midpoint)}
+          aria-label={`Наблюдать поток: ${fromLabel} → ${toLabel}. ${flow.label}`}
+          aria-pressed={selectedId === flow.id} title={flow.label}
+          onClick={() => onSelect(flow.id)} />
+      ))}
     </div>
   );
 }
+
 function ShiftCriteria({
   onBack,
   onCareer,
@@ -1413,7 +1376,7 @@ function ShiftResult({
         Узнать о профессиях →
       </button>
       <button className="shift-secondary" onClick={onExit}>
-        К заданиям
+        К играм
       </button>
       <p className="shift-small shift-muted">
         {result.alreadyCompleted

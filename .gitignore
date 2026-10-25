@@ -18,3 +18,7 @@ coverage/
 *.db
 *.db-*
 backups/
+
+.venv/
+staticfiles/
+media/

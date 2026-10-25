@@ -1,0 +1,49 @@
+{% extends 'admin/base.html' %}
+{% load i18n %}
+
+{% block title %}Рабочий стол | {{ site_title }}{% endblock %}
+{% block branding %}{% include 'unfold/helpers/site_branding.html' %}{% endblock %}
+
+{% block content %}
+<style>
+  .och-dashboard{--och-line:var(--color-base-200,#e2e8e6);--och-muted:var(--color-base-500,#64756c);--och-card:var(--color-white,#fff);--och-ink:var(--color-base-900,#18271f);color:var(--och-ink);padding:8px 0 32px}
+  .dark .och-dashboard{--och-line:var(--color-base-700,#33443a);--och-muted:var(--color-base-400,#a2b4a8);--och-card:var(--color-base-900,#15231b);--och-ink:var(--color-base-100,#edf4ee)}
+  .och-hero{background:linear-gradient(120deg,var(--color-primary-900,#164931),var(--color-primary-700,#197047));color:#fff;border-radius:16px;padding:30px 32px;display:flex;gap:24px;align-items:center;margin-bottom:30px}
+  .och-hero-symbol{font-size:54px!important;opacity:.85}.och-eyebrow{font-size:11px;letter-spacing:.15em;text-transform:uppercase;opacity:.75;margin-bottom:8px}.och-hero h1{font-size:28px;line-height:1.2;font-weight:700;margin:0 0 10px}.och-hero p{max-width:650px;line-height:1.6;opacity:.85;margin:0}
+  .och-section{margin:0 0 32px}.och-section h2{font-size:18px;line-height:1.4;font-weight:650;margin:0 0 4px}.och-section-intro{color:var(--och-muted);font-size:13px;margin-bottom:16px;line-height:1.5}
+  .och-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}.och-card{border:1px solid var(--och-line);border-radius:12px;padding:20px;display:flex;flex-direction:column;background:var(--och-card);text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s;min-height:174px}.och-card:hover{border-color:var(--color-primary-500,#229962);box-shadow:0 3px 12px #1264340c}.och-card:focus-visible{outline:3px solid var(--color-primary-500,#229962);outline-offset:3px}.och-card-top{display:flex;align-items:center;justify-content:space-between;color:var(--och-muted);font-size:13px;gap:10px}.och-card-icon{font-size:22px!important;color:var(--color-primary-600,#218652)}.och-card-value{font-size:34px;font-weight:650;line-height:1.3;margin:14px 0 5px;letter-spacing:-.03em}.och-card-description{font-size:12px;line-height:1.5;color:var(--och-muted)}
+  .och-statuses{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.och-status{border:1px solid var(--och-line);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--och-muted)}.och-status strong{color:var(--och-ink);margin-left:8px}
+  .och-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.och-links-group{border:1px solid var(--och-line);border-radius:12px;overflow:hidden;background:var(--och-card)}.och-links-group h3{font-size:13px;font-weight:650;padding:14px 16px;border-bottom:1px solid var(--och-line);margin:0}.och-links-group a{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;font-size:13px;gap:14px;text-decoration:none;color:var(--och-ink)}.och-links-group a:hover{color:var(--color-primary-600,#218652)}.och-links-group .material-symbols-outlined{font-size:17px;color:var(--och-muted)}.och-empty{border:1px dashed var(--och-line);border-radius:12px;padding:24px;color:var(--och-muted)}
+  @media(max-width:640px){.och-hero{padding:24px;gap:16px}.och-hero h1{font-size:24px}.och-hero-symbol{display:none}.och-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.och-card{padding:16px;min-height:165px}.och-card-top{align-items:flex-start}.och-card-value{font-size:30px}.och-card-icon{font-size:20px!important}}
+  @media(max-width:380px){.och-grid{grid-template-columns:1fr}}
+</style>
+<div class="och-dashboard">
+  <section class="och-hero" aria-labelledby="dashboard-title">
+    <span class="material-symbols-outlined och-hero-symbol" aria-hidden="true">factory</span>
+    <div><div class="och-eyebrow">Очаково: изнутри · управление</div><h1 id="dashboard-title">Рабочий стол</h1><p>Рабочие показатели и быстрый переход к разделам, доступным вашей роли.</p></div>
+  </section>
+  {% for section in dashboard_sections %}
+    <section class="och-section" aria-labelledby="section-{{ forloop.counter }}">
+      <h2 id="section-{{ forloop.counter }}">{{ section.title }}</h2>
+      <p class="och-section-intro">{{ section.description }}</p>
+      <div class="och-grid">
+        {% for card in section.cards %}
+          <a class="och-card" href="{{ card.url }}">
+            <div class="och-card-top"><span>{{ card.label }}</span><span class="material-symbols-outlined och-card-icon" aria-hidden="true">{{ card.icon }}</span></div>
+            <strong class="och-card-value">{{ card.value }}</strong><span class="och-card-description">{{ card.description }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% if section.statuses %}<div class="och-statuses" aria-label="Статусы откликов">{% for status in section.statuses %}<span class="och-status">{{ status.label }}<strong>{{ status.value }}</strong></span>{% endfor %}</div>{% endif %}
+    </section>
+  {% endfor %}
+  <section class="och-section" aria-labelledby="dashboard-sections">
+    <h2 id="dashboard-sections">Разделы кабинета</h2><p class="och-section-intro">Создание, проверка и сопровождение данных приложения.</p>
+    <div class="och-links">
+      {% for app in app_list %}
+        <div class="och-links-group"><h3>{{ app.name }}</h3>{% for model in app.models %}{% if model.admin_url %}<a href="{{ model.admin_url }}"><span>{{ model.name }}</span><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>{% elif model.add_url %}<a href="{{ model.add_url }}"><span>{{ model.name }}</span><span class="material-symbols-outlined" aria-hidden="true">add</span></a>{% endif %}{% endfor %}</div>
+      {% empty %}<p class="och-empty">Для этого аккаунта пока не назначены права на разделы. Обратитесь к администратору системы.</p>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

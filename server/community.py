@@ -13,6 +13,10 @@ def migrate(db, catalog):
         id TEXT PRIMARY KEY, definition TEXT NOT NULL,
         audience TEXT NOT NULL CHECK(audience IN ('candidate','staff','all')),
         published INTEGER NOT NULL CHECK(published IN (0,1)))''')
+    seed(db,catalog)
+
+
+def seed(db,catalog):
     for event in catalog['events']:
         definition={key:value for key,value in event.items() if key not in ('activities','remaining','audience','published')}
         db.execute('INSERT OR IGNORE INTO career_events VALUES(?,?,?,1)',
@@ -54,6 +58,9 @@ def events(db, staff=False):
 
 
 def event(db, event_id, staff=False):
+    if getattr(db,'is_postgres',False):
+        # Publication/audience changes and first activity completions share a row lock.
+        db.execute('SELECT id FROM career_events WHERE id=? FOR UPDATE',(event_id,))
     row=db.execute('SELECT * FROM career_events WHERE id=?',(event_id,)).fetchone()
     if not row or not row['published'] or not visible(row['audience'],staff):
         raise APIError(404,'Событие не найдено.','event_not_found')
@@ -92,6 +99,8 @@ def admin(db, method, path, body):
     match=re.fullmatch(r'/api/admin/events(?:/([A-Za-z0-9_-]+))?',path)
     if not match: raise APIError(404,'Маршрут не найден.','not_found')
     event_id=match[1]
+    if event_id and getattr(db,'is_postgres',False):
+        db.execute('SELECT id FROM career_events WHERE id=? FOR UPDATE',(event_id,))
     existing=db.execute('SELECT * FROM career_events WHERE id=?',(event_id,)).fetchone() if event_id else None
     if event_id and not existing: raise APIError(404,'Событие не найдено.','not_found')
     if method=='GET' and existing:

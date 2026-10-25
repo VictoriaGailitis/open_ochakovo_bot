@@ -284,7 +284,7 @@ class Practice:
             db.execute('''INSERT INTO practice_career VALUES(?,?,?,?,?,?) ON CONFLICT(practice_id)
                        DO UPDATE SET interested=excluded.interested,direction=excluded.direction,
                        schedule=excluded.schedule,comment=excluded.comment,created=excluded.created''',
-                       (pid, body['interested'], direction, schedule, comment, stamp()))
+                       (pid, int(body['interested']), direction, schedule, comment, stamp()))
             activity(db, pid, uid, 'career_interest_updated')
             return {'saved': True}
         if kind == 'requests' and method == 'POST' and not item_id:

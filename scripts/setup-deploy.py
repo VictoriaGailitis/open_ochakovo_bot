@@ -26,16 +26,19 @@ def main():
     secret = getpass.getpass('Защищённый ключ приложения VK (ввод скрыт): ').strip()
     if not secret or any(char in secret for char in "'\r\n\x00"):
         parser.error('Ключ пуст или содержит недопустимые символы.')
+    database_password = secrets.token_urlsafe(32)
     content = (
         '# Private server configuration. Do not commit or share.\n'
         f"APP_DOMAIN='{domain}'\nVK_APP_ID='{args.app_id}'\n"
-        f"VK_APP_SECRET='{secret}'\nADMIN_TOKEN='{secrets.token_urlsafe(32)}'\n"
+        f"VK_APP_SECRET='{secret}'\n"
+        f"POSTGRES_PASSWORD='{database_password}'\nDATABASE_URL='postgresql://ochakovo:{database_password}@db:5432/ochakovo'\n"
+        f"SECRET_KEY='{secrets.token_urlsafe(64)}'\nDJANGO_ALLOWED_HOSTS='{domain},127.0.0.1,localhost'\nCSRF_TRUSTED_ORIGINS='https://{domain}'\n"
     )
     # Exclusive create also prevents a race from replacing an existing config.
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as file:
         file.write(content)
-    print(f'Создан {path} (права 600). HR-ключ сгенерирован и сохранён в ADMIN_TOKEN.')
+    print(f'Создан {path} (права 600). Доступ к админке — через персональные Django-аккаунты.')
     print('Запуск: docker compose --env-file .env.production up -d --build')
     print(f'URL для всех платформ в настройках VK: https://{domain}/')
 

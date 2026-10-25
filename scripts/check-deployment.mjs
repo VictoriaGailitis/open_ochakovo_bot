@@ -29,7 +29,8 @@ try {
   });
 
   const health = await request('/api/health');
-  check(health.ok && (await health.json()).ok === true, 'API отвечает');
+  const healthStatus = await health.json();
+  check(health.ok && healthStatus.ok === true && healthStatus.database === 'postgresql', 'API отвечает из PostgreSQL');
   const config = await request('/api/config');
   const settings = await config.json();
   check(config.ok && settings.devAuth === false, 'Демонстрационный вход выключен');
@@ -40,7 +41,10 @@ try {
   const invalid = await post({ launchParams: `vk_app_id=1&vk_user_id=1&vk_ts=${Math.floor(Date.now() / 1000)}&sign=invalid` });
   check(invalid.status === 401 && (await invalid.json()).code === 'invalid_launch', 'Поддельная подпись VK отклонена');
   check((await request('/api/bootstrap')).status === 401, 'Профиль закрыт без входа');
-  check((await request('/api/admin/applications')).status === 401, 'HR-кабинет закрыт без ключа');
+  const retired = await request('/api/admin/applications');
+  check(retired.status === 410 && (await retired.json()).code === 'admin_api_retired', 'Общий HR-ключ выведен из эксплуатации');
+  const adminLogin = await request('/admin/login/');
+  check(adminLogin.ok && (adminLogin.headers.get('content-type') ?? '').includes('text/html'), 'Персональный кабинет Django доступен');
 
   const page = await request('/');
   check(page.ok && (page.headers.get('content-type') ?? '').includes('text/html'), 'HTML приложения доступен');

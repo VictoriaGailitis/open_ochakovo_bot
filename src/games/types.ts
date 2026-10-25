@@ -98,6 +98,7 @@ export interface GamePresentation {
 }
 export interface Task {
   id: string;
+  contentVersion?: number;
   game: GameKind;
   level: number;
   title: string;

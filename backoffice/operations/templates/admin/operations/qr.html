@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'operations/qr.css' %}">{% endblock %}
+{% block content %}
+<section class="qr-sheet">
+  <p>{{ event_title }}</p><h1>{{ activity.title }}</h1>
+  <p>{{ activity.description }}</p>
+  <img width="360" height="360" src="{{ png_url }}" alt="QR-код активности {{ activity.title }}">
+  <p>Сканируйте QR-код в приложении после участия в активности.</p>
+  <p>За выполнение: {{ activity.points }} баллов</p>
+  <p class="qr-controls"><a href="{{ png_url }}&amp;download=1">Скачать PNG</a> · <a href="{{ svg_url }}">Скачать SVG</a> · <button type="button" id="print-qr">Распечатать</button></p>
+  <p class="qr-controls">Код предназначен для площадки мероприятия. Не публикуйте его заранее в открытом доступе.</p>
+</section><script src="{% static 'operations/qr.js' %}" defer></script>
+{% endblock %}

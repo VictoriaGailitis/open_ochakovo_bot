@@ -368,7 +368,7 @@ export default function App() {
         ? "events"
         : "home";
   const task = catalog.tasks.find((t) => t.id === route.id);
-  const gameScreen = page === "game" && Boolean(task) && task?.game !== "history";
+  const gameScreen = page === "game" && Boolean(task) && task?.id !== "history-1";
   const shiftScreen = gameScreen && task?.game === "shift";
   const offer = catalog.offers.find((o) => o.id === route.id);
   const event = catalog.events.find((e) => e.id === route.id);
@@ -417,7 +417,7 @@ export default function App() {
               <Mascot />
             </div>
           </section>
-          <Button onClick={() => navigate("tasks")}>Выбрать задание</Button>
+          <Button onClick={() => navigate("tasks")}>Выбрать игру</Button>
           {data.routeCompleted && (
             <div className="success stack">
               <h2>Маршрут открыт!</h2>
@@ -493,8 +493,8 @@ export default function App() {
       );
       break;
     case "game":
-      if (task?.game === "history") {
-        content = <><Back page="tasks">К заданиям</Back><Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId="ochakovo-history" onEarned={async () => { await refresh(); }} /></>;
+      if (task?.id === "history-1") {
+        content = <><Back page="tasks">К играм</Back><Learning client={api} loadMedia={loadCandidateMedia} initialMaterialId="ochakovo-history" onEarned={async () => { await refresh(); }} /></>;
         break;
       }
       content = task ? (
@@ -577,7 +577,7 @@ export default function App() {
             const result = await api<CompletionResult>(
               `/tasks/${task.id}/complete`,
               "POST",
-              { solution },
+              { solution, contentVersion: task.contentVersion },
             );
             await refresh();
             return result;
@@ -595,7 +595,7 @@ export default function App() {
         <Empty>
           Такое задание не найдено.{" "}
           <button className="button-ghost" onClick={() => navigate("tasks")}>
-            К заданиям
+            К играм
           </button>
         </Empty>
       );
@@ -940,7 +940,7 @@ export default function App() {
             {rewardGoal === reward.id ? "Это моя цель ✓" : "Выбрать целью"}
           </Button>
           <button className="button-ghost" onClick={() => navigate("tasks")}>
-            Открыть задания →
+            Открыть игры →
           </button>
         </>
       ) : (
@@ -1069,7 +1069,7 @@ export default function App() {
           {[
             ["home", "⌂", "Для тебя"],
             ["materials", "▤", "Материалы"],
-            ["tasks", "◇", "Задания"],
+            ["tasks", "◇", "Игры"],
             ["career", "▣", "Карьера"],
             ["events", "▦", "События"],
           ].map(([key, icon, title]) => (

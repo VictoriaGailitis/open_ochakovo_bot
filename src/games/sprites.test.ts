@@ -168,3 +168,36 @@ test("malformed scene data is rejected before rendering a level preview", () => 
   }
   assert.deepEqual(presentationErrors(presentation()), []);
 });
+
+test("an uploaded module registers without renderer changes and rejects executable URLs atomically", async () => {
+  const { registerSpriteAssets } = await import("./sprites");
+  const uploaded = {
+    id: "admin-new-asset",
+    kind: "general",
+    src: "/api/game-assets/admin-new-asset/",
+    width: 96,
+    height: 96,
+    pixelWidth: 192,
+    pixelHeight: 192,
+  };
+  registerSpriteAssets({ schemaVersion: 1, sprites: [uploaded] });
+  assert.equal(getSprite(uploaded.id)?.src, uploaded.src);
+  assert.deepEqual(
+    presentationErrors({ schemaVersion: 1, sprites: { source: uploaded.id } }),
+    [],
+  );
+  for (const src of [
+    "https://foreign.invalid/asset.png",
+    "javascript:alert(1)",
+    "//foreign.invalid/x",
+    "/api/game-assets/../secret/",
+  ]) {
+    assert.throws(() =>
+      registerSpriteAssets({
+        schemaVersion: 1,
+        sprites: [{ ...uploaded, id: "rejected-asset", src }],
+      }),
+    );
+    assert.equal(getSprite("rejected-asset"), undefined);
+  }
+});
