@@ -1,6 +1,20 @@
 {$APP_DOMAIN} {
-	encode zstd gzip
-	# Keep Host and the original launch query for signature verification.
-	# Access logging is deliberately disabled: queries contain VK credentials.
-	reverse_proxy app:3001
+    encode zstd gzip
+    # VK launch queries contain credentials: do not enable access logging.
+    @backoffice path /admin /admin/* /static/* /game-preview.html
+    respond @backoffice 404
+    reverse_proxy app:3001
+}
+
+{$ADMIN_DOMAIN} {
+    encode zstd gzip
+    @root path /
+    redir @root /admin/ 302
+    @backoffice path /admin /admin/* /static/* /game-preview.html /assets/* /api/game-assets /api/game-assets/*
+    handle @backoffice {
+        reverse_proxy admin:3001
+    }
+    handle {
+        respond 404
+    }
 }

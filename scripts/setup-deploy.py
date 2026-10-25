@@ -10,14 +10,19 @@ import secrets
 def main():
     parser = argparse.ArgumentParser(description='Настройка размещения VK Mini App')
     parser.add_argument('--domain', required=True, help='Домен без https:// и пути')
+    parser.add_argument('--admin-domain', help='Отдельный домен кабинета команды')
     parser.add_argument('--app-id', required=True, help='Числовой ID приложения VK')
     args = parser.parse_args()
     domain = args.domain.lower().strip()
+    admin_domain = (args.admin_domain or 'admin.' + domain).lower().strip()
     labels = domain.split('.')
     if (len(domain) > 253 or len(labels) < 2 or
             all(label.isdigit() for label in labels) or
             not all(re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', label) for label in labels)):
         parser.error('Нужен публичный DNS-домен, например mini.example.ru (кириллический домен — в punycode).')
+    admin_labels = admin_domain.split('.')
+    if admin_domain == domain or len(admin_domain) > 253 or len(admin_labels) < 2 or all(label.isdigit() for label in admin_labels) or not all(re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', label) for label in admin_labels):
+        parser.error('Для админки нужен отдельный публичный DNS-домен.')
     if not re.fullmatch(r'[1-9][0-9]*', args.app_id):
         parser.error('ID приложения должен быть положительным целым числом.')
     path = Path(__file__).resolve().parent.parent / '.env.production'
@@ -29,10 +34,10 @@ def main():
     database_password = secrets.token_urlsafe(32)
     content = (
         '# Private server configuration. Do not commit or share.\n'
-        f"APP_DOMAIN='{domain}'\nVK_APP_ID='{args.app_id}'\n"
+        f"APP_DOMAIN='{domain}'\nADMIN_DOMAIN='{admin_domain}'\nVK_APP_ID='{args.app_id}'\n"
         f"VK_APP_SECRET='{secret}'\n"
         f"POSTGRES_PASSWORD='{database_password}'\nDATABASE_URL='postgresql://ochakovo:{database_password}@db:5432/ochakovo'\n"
-        f"SECRET_KEY='{secrets.token_urlsafe(64)}'\nDJANGO_ALLOWED_HOSTS='{domain},127.0.0.1,localhost'\nCSRF_TRUSTED_ORIGINS='https://{domain}'\n"
+        f"SECRET_KEY='{secrets.token_urlsafe(64)}'\nDJANGO_ALLOWED_HOSTS='{domain},{admin_domain},127.0.0.1,localhost'\nCSRF_TRUSTED_ORIGINS='https://{domain},https://{admin_domain}'\n"
     )
     # Exclusive create also prevents a race from replacing an existing config.
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

@@ -16,9 +16,10 @@ services:
       retries: 20
   app:
     build: .
+    image: ochakovo-runtime:${APP_RELEASE:-local}
     restart: unless-stopped
     init: true
-    environment:
+    environment: &runtime_environment
       DEV_AUTH: "0"
       DJANGO_DEBUG: "0"
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL using host db and port 5432}
@@ -37,11 +38,26 @@ services:
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
+  admin:
+    image: ochakovo-runtime:${APP_RELEASE:-local}
+    restart: unless-stopped
+    init: true
+    command: ["gunicorn", "backoffice.wsgi:application", "--bind", "0.0.0.0:3001", "--workers", "2", "--timeout", "90", "--access-logfile", "/dev/null"]
+    environment: *runtime_environment
+    volumes:
+      - app_data:/app/.data
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
   https:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?Set ADMIN_DOMAIN}
     ports: ["80:80", "443:443", "443:443/udp"]
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -49,6 +65,8 @@ services:
       - caddy_config:/config
     depends_on:
       app:
+        condition: service_healthy
+      admin:
         condition: service_healthy
     logging:
       driver: json-file

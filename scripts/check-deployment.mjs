@@ -1,7 +1,7 @@
 // Read-only deployment checks; no real launch parameters or credentials needed.
 const target = process.argv[2];
 if (!target) {
-  console.error('Использование: npm run check:deployment -- https://mini.example.ru');
+  console.error('Использование: npm run check:deployment -- https://mini.example.ru [https://admin.example.ru]');
   process.exit(1);
 }
 
@@ -12,6 +12,9 @@ function check(condition, message) {
 
 try {
   const base = new URL(target);
+  const adminBase = process.argv[3] ? new URL(process.argv[3]) : base;
+  if (adminBase.username || adminBase.password || adminBase.search || adminBase.hash || adminBase.pathname !== "/" || (adminBase.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(adminBase.hostname)))
+    throw new Error("Укажите корень сайта админки без параметров доступа, с HTTPS.");
   if (base.username || base.password || base.search || base.hash || base.pathname !== '/')
     throw new Error('Укажите только корень сайта без ключей, query-параметров и пути.');
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(base.hostname);
@@ -43,7 +46,9 @@ try {
   check((await request('/api/bootstrap')).status === 401, 'Профиль закрыт без входа');
   const retired = await request('/api/admin/applications');
   check(retired.status === 410 && (await retired.json()).code === 'admin_api_retired', 'Общий HR-ключ выведен из эксплуатации');
-  const adminLogin = await request('/admin/login/');
+  const adminLogin = await fetch(new URL('/admin/login/', adminBase), { redirect: 'error', signal: AbortSignal.timeout(15000) });
+  if (adminBase.origin !== base.origin)
+    check((await request('/admin/login/')).status === 404, 'Админка отделена от домена мини-приложения');
   check(adminLogin.ok && (adminLogin.headers.get('content-type') ?? '').includes('text/html'), 'Персональный кабинет Django доступен');
 
   const page = await request('/');
