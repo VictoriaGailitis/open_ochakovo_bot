@@ -123,14 +123,14 @@ export function isQrReaderCancellation(error: unknown): boolean {
 export function qrCameraErrorMessage(error: unknown): string {
   const name = object(error).name;
   if (name === "NotAllowedError" || name === "PermissionDeniedError")
-    return "Доступ к камере не разрешён. Можно выбрать изображение QR или ввести код вручную.";
+    return "Доступ к камере не разрешён. Разреши использование камеры в настройках VK или браузера и попробуй снова.";
   if (name === "NotFoundError" || name === "DevicesNotFoundError")
-    return "Камера не найдена. Выбери изображение QR или введи код вручную.";
+    return "Камера не найдена. Открой приложение на устройстве с камерой.";
   if (name === "NotReadableError" || name === "TrackStartError")
-    return "Камера занята другим приложением. Закрой его и попробуй ещё раз либо выбери изображение QR.";
+    return "Камера занята другим приложением. Закрой его и попробуй ещё раз.";
   if (name === "SecurityError")
-    return "Браузер не разрешает камеру на этой странице. Открой приложение по HTTPS или выбери изображение QR.";
-  return "Не удалось запустить камеру. Попробуй ещё раз, выбери изображение QR или введи код вручную.";
+    return "Браузер не разрешает камеру на этой странице. Открой приложение по HTTPS.";
+  return "Не удалось запустить камеру. Проверь разрешение на доступ к камере и попробуй ещё раз.";
 }
 export function qrScanErrorMessage(error: unknown, rawCode = ""): string {
   const value = object(error);

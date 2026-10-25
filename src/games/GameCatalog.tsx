@@ -30,7 +30,6 @@ export function GameCatalog({
     (game) =>
       game.id !== "history" && tasks.some((task) => task.game === game.id),
   );
-  const history = definitions.find((game) => game.id === "history");
   useEffect(() => {
     if (selected) {
       if (!dialog.current?.open) dialog.current?.showModal();
@@ -62,11 +61,6 @@ export function GameCatalog({
           </span>
         </button>
       ))}
-      {history && (
-        <button className="catalog-history" onClick={() => open(history)}>
-          ОТКРОЙ ИСТОРИЮ ОЧАКОВО →
-        </button>
-      )}
       <dialog
         ref={dialog}
         aria-labelledby="catalog-level-title"

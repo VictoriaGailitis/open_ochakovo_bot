@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import bridge from "@vkontakte/vk-bridge";
 import type { ActivityScanResult } from "../types";
 import {
@@ -14,7 +8,6 @@ import {
   QrScanLifecycle,
   QrSubmissionGate,
   qrCameraErrorMessage,
-  qrImageValidationError,
   qrScanErrorMessage,
   supportsNativeQrReader,
 } from "../qrScanner";
@@ -27,25 +20,16 @@ export interface QrScannerProps {
   onEvent: (id: string) => void;
 }
 type Phase =
-  | "idle"
-  | "starting"
-  | "camera"
-  | "vk"
-  | "image"
-  | "submitting"
-  | "result"
-  | "error";
+  "idle" | "starting" | "camera" | "vk" | "submitting" | "result" | "error";
 
 export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
   const [phase, setPhase] = useState<Phase>("idle"),
     [nativeUnavailable, setNativeUnavailable] = useState(false),
-    [manual, setManual] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [result, setResult] = useState<ActivityScanResult | null>(null);
   const video = useRef<HTMLVideoElement>(null),
     heading = useRef<HTMLHeadingElement>(null),
-    fileInput = useRef<HTMLInputElement>(null),
     mounted = useRef(true),
     operation = useRef(0),
     phaseRef = useRef<Phase>("idle"),
@@ -58,7 +42,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
   const inVK =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("vk_user_id");
-  const busy = ["starting", "vk", "image", "submitting"].includes(phase);
+  const busy = ["starting", "vk", "submitting"].includes(phase);
   const cameraVisible = phase === "starting" || phase === "camera";
 
   useEffect(() => {
@@ -84,7 +68,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
     stopCapture();
     if (mounted.current) {
       setPhase("idle");
-      setNotice("Сканирование остановлено. Можно попробовать другой способ.");
+      setNotice("Сканирование остановлено. Можно запустить камеру снова.");
     }
   }
   function leave() {
@@ -108,7 +92,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       stopCapture();
       if (
         mounted.current &&
-        ["starting", "camera", "image"].includes(phaseRef.current)
+        ["starting", "camera"].includes(phaseRef.current)
       ) {
         setPhase("idle");
         setNotice(
@@ -187,7 +171,9 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       if (!mounted.current || attempt !== operation.current) return;
       if (!supported) {
         setNativeUnavailable(true);
-        await startCamera("Открываем камеру: встроенный сканер VK в этом клиенте недоступен.");
+        await startCamera(
+          "Открываем камеру: встроенный сканер VK в этом клиенте недоступен.",
+        );
         return;
       }
       const response = await bridge.send("VKWebAppOpenCodeReader", {});
@@ -197,12 +183,12 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       if (!mounted.current || attempt !== operation.current) return;
       if (isQrReaderCancellation(failure)) {
         setPhase("idle");
-        setNotice(
-          "Сканирование отменено. Можно открыть сканер снова или выбрать изображение QR.",
-        );
+        setNotice("Сканирование отменено. Можно открыть сканер снова.");
       } else {
         setNativeUnavailable(true);
-        await startCamera("Сканер VK не запустился. Открываем камеру для сканирования.");
+        await startCamera(
+          "Сканер VK не запустился. Открываем камеру для сканирования.",
+        );
       }
     }
   }
@@ -222,7 +208,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
     setPhase("starting");
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       showError(
-        "Камера недоступна в этом браузере. Для камеры нужна защищённая страница HTTPS; можно выбрать изображение QR.",
+        "Камера недоступна в этом браузере. Открой приложение по HTTPS в клиенте с поддержкой камеры.",
       );
       return;
     }
@@ -240,9 +226,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       const preview = video.current;
       const ended = () => {
         if (resources.current.isActive(session))
-          showError(
-            "Камера отключилась. Можно запустить её снова или выбрать изображение QR.",
-          );
+          showError("Камера отключилась. Попробуй запустить её снова.");
       };
       for (const track of stream.getTracks())
         track.addEventListener("ended", ended);
@@ -283,7 +267,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
           if (failure && !isQrFrameMiss(failure)) {
             scanControls.stop();
             showError(
-              "Не удалось прочитать изображение с камеры. Попробуй ещё раз или выбери файл QR.",
+              "Не удалось прочитать QR с камеры. Запусти сканирование снова и помести QR в центр кадра.",
             );
           }
         },
@@ -293,77 +277,6 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
       if (mounted.current && resources.current.isActive(session))
         showError(qrCameraErrorMessage(failure));
     }
-  }
-
-  async function chooseImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || gate.current.isPending || busy) return;
-    const invalid = qrImageValidationError(file);
-    if (invalid) {
-      showError(invalid);
-      return;
-    }
-    const session = resources.current.begin();
-    operation.current++;
-    retryCode.current = "";
-    setError("");
-    setNotice("");
-    setResult(null);
-    setPhase("image");
-    const url = URL.createObjectURL(file);
-    const releaseUrl = resources.current.own(session, () =>
-      URL.revokeObjectURL(url),
-    );
-    let releaseImage = () => {};
-    try {
-      const { BrowserQRCodeReader } = await import("@zxing/browser");
-      if (!mounted.current || !resources.current.isActive(session)) return;
-      const image = new Image();
-      image.decoding = "async";
-      await new Promise<void>((resolve, reject) => {
-        const timeout = window.setTimeout(
-          () => reject(new Error("Image loading timed out")),
-          10000,
-        );
-        image.onload = () => resolve();
-        image.onerror = () => reject(new Error("Image loading failed"));
-        releaseImage = resources.current.own(session, () => {
-          window.clearTimeout(timeout);
-          image.onload = null;
-          image.onerror = null;
-          image.removeAttribute("src");
-          reject(new DOMException("Image decoding cancelled", "AbortError"));
-        });
-        image.src = url;
-      });
-      if (!mounted.current || !resources.current.isActive(session)) return;
-      if (image.naturalWidth * image.naturalHeight > 32000000) {
-        showError(
-          "Изображение слишком большое по размеру. Выбери уменьшенную копию или снимок только QR-кода.",
-        );
-        return;
-      }
-      const reader = new BrowserQRCodeReader();
-      const decoded = await reader.decodeFromImageElement(image);
-      if (mounted.current && resources.current.isActive(session))
-        await acceptCode(decoded.getText());
-    } catch (failure) {
-      if (mounted.current && resources.current.isActive(session))
-        showError(
-          isQrFrameMiss(failure)
-            ? "На изображении не найден читаемый QR-код. Выбери более чёткое изображение или введи код вручную."
-            : "Не удалось прочитать изображение. Выбери другой файл PNG, JPEG или WebP.",
-        );
-    } finally {
-      releaseImage();
-      releaseUrl();
-    }
-  }
-  function manualSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (busy) return;
-    void acceptCode(manual.trim());
   }
 
   return (
@@ -437,18 +350,14 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
               <strong>
                 {phase === "vk"
                   ? "Открыт сканер VK"
-                  : phase === "image"
-                    ? "Читаем изображение…"
-                    : phase === "submitting"
-                      ? "Проверяем активность…"
-                      : "Наведи камеру на QR"}
+                  : phase === "submitting"
+                    ? "Проверяем активность…"
+                    : "Наведи камеру на QR"}
               </strong>
               <p>
                 {phase === "submitting"
                   ? "Дождись ответа приложения."
-                  : phase === "image"
-                    ? "Камера не используется."
-                    : "Камера включается только по твоему нажатию."}
+                  : "Камера включается только по твоему нажатию."}
               </p>
             </div>
             {cameraVisible && (
@@ -485,7 +394,7 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
               Повторить проверку
             </button>
           )}
-          {["starting", "camera", "vk", "image"].includes(phase) && (
+          {["starting", "camera", "vk"].includes(phase) && (
             <button
               type="button"
               className="qr-secondary"
@@ -503,7 +412,9 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
                 void (inVK && !nativeUnavailable ? openNative() : openCamera());
               }}
             >
-              {inVK && !nativeUnavailable ? "Открыть сканер VK" : "Открыть камеру"}
+              {inVK && !nativeUnavailable
+                ? "Открыть сканер VK"
+                : "Открыть камеру"}
             </button>
           )}
           {inVK && !nativeUnavailable && !cameraVisible && (
@@ -518,50 +429,6 @@ export function QrScanner({ onScan, onBack, onEvent }: QrScannerProps) {
               Использовать камеру браузера →
             </button>
           )}
-          <div className="qr-file-picker">
-            <input
-              ref={fileInput}
-              id="qr-image-file"
-              type="file"
-              aria-label="Файл с QR-кодом активности"
-              tabIndex={-1}
-              accept="image/png,image/jpeg,image/webp"
-              disabled={busy}
-              onChange={(event) => {
-                void chooseImage(event);
-              }}
-            />
-            <button
-              type="button"
-              className="qr-secondary"
-              disabled={busy}
-              onClick={() => fileInput.current?.click()}
-            >
-              Выбрать изображение QR
-            </button>
-            <p className="qr-small qr-muted">PNG, JPEG или WebP · до 10 МБ</p>
-          </div>
-          <form className="qr-manual" onSubmit={manualSubmit}>
-            <label htmlFor="qr-manual-code">Или вставь текст QR-кода</label>
-            <textarea
-              id="qr-manual-code"
-              value={manual}
-              onChange={(event) => setManual(event.target.value)}
-              placeholder="ochakovo:activity:v1:…"
-              maxLength={512}
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              disabled={busy}
-            />
-            <button
-              type="submit"
-              className="qr-secondary"
-              disabled={busy || !manual.trim()}
-            >
-              Проверить код
-            </button>
-          </form>
           <p className="qr-small qr-muted">
             Засчитываются только QR активностей этого приложения. Баллы за одну
             активность начисляются один раз.
